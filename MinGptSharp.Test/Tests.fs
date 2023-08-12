@@ -20,3 +20,23 @@ type TestClass () =
         Assert.AreEqual('!', map[int '!'])
         Assert.AreEqual('Ā', map[0])
         Assert.AreEqual('Ġ', map[int ' '])
+
+    [<TestMethod>]
+    member _.Tokenize() =
+        let text = "Hello!! I'm Andrej Karpathy. It's 2022. w00t :D 🤗"
+        let pairs =
+            Array.zip
+                (Encoder(Map.empty, Seq.empty).Tokenize(text))
+                [| "Hello"; "!!"; " I"; "'m"; " Andrej"; " Karpathy"; "."; " It"; "'s"; " 2022"; "."; " w"; "00"; "t"; " :"; "D"; " 🤗" |]
+        for expected, actual in pairs do
+            Assert.AreEqual(expected, actual)
+
+    [<TestMethod>]
+    member _.Encode() =
+        let text = "Hello!! I'm Andrej Karpathy. It's 2022. w00t :D 🤗"
+        let pairs =
+            Array.zip
+                (Encoder(Map.empty, Seq.empty).Encode(text))
+                [| "Hello"; "!!"; "ĠI"; "'m"; "ĠAndrej"; "ĠKarpathy"; "."; "ĠIt"; "'s"; "Ġ2022"; "."; "Ġw"; "00"; "t"; "Ġ:"; "D"; "ĠðŁ¤Ĺ" |]
+        for expected, actual in pairs do
+            Assert.AreEqual(expected, actual)
