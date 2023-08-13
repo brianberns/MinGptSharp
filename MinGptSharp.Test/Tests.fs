@@ -23,11 +23,14 @@ type TestClass () =
 
     [<TestMethod>]
     member _.Encode() =
+
         let text = "Hello!! I'm Andrej Karpathy. It's 2022. w00t :D 🤗"
+        let encoder = Encoder.get_encoder ()
+
         let expected =
             [| 15496; 3228; 314; 1101; 10948; 73; 509; 5117; 10036; 13; 632; 338; 33160; 13; 266; 405; 83; 1058; 35; 12520; 97; 245 |]
-        let actual =
-            let encoder = Encoder.get_encoder ()
-            encoder.Encode(text)
+        let actual = encoder.Encode(text)
         for expectedItem, actualItem in Array.zip expected actual do
             Assert.AreEqual(expectedItem, actualItem)
+
+        Assert.AreEqual(encoder.Decode(actual), text)

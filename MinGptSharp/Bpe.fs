@@ -111,6 +111,12 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                 [| for bpe_token in token_merged -> encoder[bpe_token] |])
             |> Seq.toArray
 
+    member _.Decode(bpe_idx) =
+        let tokens_merged = [| for token in bpe_idx -> decoder[token] |]
+        let tokens_flat = String.concat "" tokens_merged
+        let tokens_bytes = [| for c in tokens_flat -> byte byte_decoder[c] |]
+        Encoding.UTF8.GetString(tokens_bytes)
+
 module Encoder =
 
     open System.IO
