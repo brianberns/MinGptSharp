@@ -76,8 +76,8 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
         """'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
             |> RegularExpressions.Regex
 
-    /// Merges characters in the given string. E.g. "ĠKarpathy" ->
-    /// "ĠK arp athy"
+    /// Merges characters in the given string.
+    /// E.g. "ĠKarpathy" -> "ĠK arp athy".
     let bpeRaw (token : string) =
 
         /// Merges a pair of pieces of the given word.
