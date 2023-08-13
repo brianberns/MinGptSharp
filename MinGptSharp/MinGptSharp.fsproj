@@ -14,6 +14,7 @@
     </None>
     <Compile Include="Utils.fs" />
     <Compile Include="Bpe.fs" />
+    <Compile Include="Model.fs" />
   </ItemGroup>
 
   <ItemGroup>
