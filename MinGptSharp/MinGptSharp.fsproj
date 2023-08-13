@@ -12,10 +12,9 @@
     <None Include="vocab.bpe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Compile Include="Utils.fs" />
     <Compile Include="Bpe.fs" />
   </ItemGroup>
-
-  <ItemGroup />
 
   <ItemGroup>
     <PackageReference Include="TorchSharp-cpu" Version="0.100.3" />

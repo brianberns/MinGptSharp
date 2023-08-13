@@ -1,13 +1,27 @@
 ﻿namespace MinGptSharp
 
-[<AutoOpen>]
-module Utils =
+(*
+   A byte-pair encoder translates a string into a sequence of tokens,
+   where each token is an integer representing a frequently-occurring
+   series of characters in English (e.g. "ing"). The encoding process is:
+  
+   1. Use a regex to break the input text into pieces, such as
+      " Karpathy". (Note the leading space in this example.)
+  
+   2. Encode each byte of each piece into a Unicode character. E.g.
+      " Karpathy" -> "ĠKarpathy". (The leading space is encoded as
+      a visible Unicode character.)
+  
+   3. Merge the Unicode characters of each piece into tokens. E.g.
+      "ĠKarpathy" -> "ĠK", "arp", "athy"
+  
+   4. Encode each token as an integer. E.g. "ĠK", "arp", "athy" ->
+      509, 5117, 10036.
+ *)
 
-    let range n = seq { 0 .. n - 1 }
-
-/// Byte pair encoder
 module Bpe =
 
+    /// Maps bytes to Unicode characters.
     let bytesToUnicode =
 
             // characters that render fine in their original form
@@ -29,6 +43,8 @@ module Bpe =
             |> fst
             |> Map
 
+    /// Breaks the given sequence into distinct pairs of adjacent items.
+    /// E.g. "h", "el", "lo", "!" -> ("h", "el"), ("el", "lo"), ("lo", "!")
     let get_pairs word =
         word
             |> Seq.pairwise
@@ -38,6 +54,7 @@ module Bpe =
 open System
 open System.Text
 
+/// A byte-pair encoder/decoder.
 type Encoder(encoder, bpe_merges : seq<string * string>) =
 
     // byte encoder/decoder
@@ -48,20 +65,26 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
     let encoder : Map<_, _> = encoder
     let decoder = Map [ for KeyValue(k, v) in encoder do v, k ]
 
+    /// Defines the order in which pieces of text are to be merged.
     let bpe_ranks =
         bpe_merges
             |> Seq.mapi (fun i x -> x, i)
             |> Map
 
+    /// String-breaking regex.
     let pat =
         """'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
             |> RegularExpressions.Regex
 
-    let bpe (token : string) =
+    /// Merges characters in the given string. E.g. "ĠKarpathy" ->
+    /// "ĠK arp athy"
+    let bpeRaw (token : string) =
 
+        /// Merges a pair of pieces of the given word.
         let rec merge (word : string[]) =
             if word.Length < 2 then word
             else
+                    // find the lowest-rank bigram that can be merged
                 let pairs = Bpe.get_pairs word
                 let bigram =
                     pairs
@@ -69,6 +92,8 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                             bpe_ranks
                                 |> Map.tryFind pair
                                 |> Option.defaultValue Int32.MaxValue)
+
+                    // merge all occurrences of the bigram
                 if bpe_ranks.ContainsKey(bigram) then
                     let pairs =
                         seq {
@@ -89,15 +114,20 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                         |> merge
                 else word
 
+        assert(token.Contains(' ') |> not)
         token.ToCharArray()
-            |> Array.map string
-            |> merge
-            |> String.concat " "
+            |> Array.map string    // convert each character to a string of lenth 1
+            |> merge               // merge all known bigrams
+            |> String.concat " "   // flatten using space character as delimiter
+
+        // memoize for speed
+    let bpe = memoize bpeRaw
 
     do
         assert(byte_decoder.Count = byte_encoder.Count)
         assert(decoder.Count = encoder.Count)
 
+    /// Encodes the given text as a sequence of integers.
     member _.Encode(text) =
         pat.Matches(text)
             |> Seq.collect (fun mtch ->
@@ -111,6 +141,7 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                 [| for bpe_token in token_merged -> encoder[bpe_token] |])
             |> Seq.toArray
 
+    /// Decodes the given sequence of integers to text.
     member _.Decode(bpe_idx) =
         let tokens_merged = [| for token in bpe_idx -> decoder[token] |]
         let tokens_flat = String.concat "" tokens_merged
@@ -122,20 +153,25 @@ module Encoder =
     open System.IO
     open System.Text.Json
 
+    /// Creates a GPT BPE encoder/decoder.
     let get_encoder () =
 
+            // load mappings from token to integer
         let encoder =
             use reader = new StreamReader("encoder.json")
             JsonSerializer.Deserialize<Map<string, int>>(reader.BaseStream)
-        assert(encoder.Count = 256 + 50000 + 1)
+        assert(encoder.Count = 256 (*byte tokens*) + 50000 (*merged tokens*) + 1 (*end-of-text token*))
 
+            // load the tree structure that indicates how to merge
+            // characters into tokens
         let bpe_merges =
             File.ReadLines "vocab.bpe"
-                |> Seq.skip 1
+                |> Seq.skip 1   // skip version #
                 |> Seq.choose (fun merge_str ->
                     match Seq.toList <| merge_str.Split(' ') with
                         | [first; second] -> Some (first, second)
-                        | _ -> None)
+                        | [] -> None
+                        | _ -> failwith $"Unexpected line: {merge_str}")
                 |> Seq.toArray
         assert(bpe_merges.Length = 50000)
 

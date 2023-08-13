@@ -3,9 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34003.232
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MinGptSharp", "MinGptSharp\MinGptSharp.fsproj", "{A9734CA0-D86A-455F-A761-CC49F0126558}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "MinGptSharp", "MinGptSharp\MinGptSharp.fsproj", "{A9734CA0-D86A-455F-A761-CC49F0126558}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MinGptSharp.Test", "MinGptSharp.Test\MinGptSharp.Test.fsproj", "{B70CC6BC-6082-4ED9-A122-46FC994439DC}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "MinGptSharp.Test", "MinGptSharp.Test\MinGptSharp.Test.fsproj", "{B70CC6BC-6082-4ED9-A122-46FC994439DC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C5E519B6-DD78-40B3-BB6A-47C47125F362}"
+	ProjectSection(SolutionItems) = preProject
+		Readme.md = Readme.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

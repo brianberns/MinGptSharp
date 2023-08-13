@@ -14,7 +14,7 @@ type Assert() =
 type TestClass () =
 
     [<TestMethod>]
-    member _.Bpe() =
+    member _.BytesToUnicode() =
         let map = Bpe.bytesToUnicode
         Assert.AreEqual(256, map.Count)
         Assert.AreEqual('!', map[int '!'])
