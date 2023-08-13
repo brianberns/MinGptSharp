@@ -5,9 +5,6 @@ module Utils =
 
     let range n = seq { 0 .. n - 1 }
 
-open System
-open System.Text
-
 /// Byte pair encoder
 module Bpe =
 
@@ -37,6 +34,9 @@ module Bpe =
             |> Seq.pairwise
             |> Seq.distinct
             |> Seq.toArray
+
+open System
+open System.Text
 
 type Encoder(encoder, bpe_merges : seq<string * string>) =
 
@@ -98,30 +98,31 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
         assert(byte_decoder.Count = byte_encoder.Count)
         assert(decoder.Count = encoder.Count)
 
-    member _.Tokenize(text) =
+    member _.Encode(text) =
         pat.Matches(text)
-            |> Seq.map (fun mtch -> mtch.Value)
-            |> Seq.toArray
-
-    member this.Encode(text) =
-        let tokens = this.Tokenize(text)
-        [|
-            for token in tokens do
-                let token_bytes = Encoding.UTF8.GetBytes(token)
+            |> Seq.collect (fun mtch ->
+                let token_bytes = Encoding.UTF8.GetBytes(mtch.Value)
                 let token_translated =
                     String [|
                         for b in token_bytes do
                             byte_encoder[int b]
                     |]
                 let token_merged = bpe(token_translated).Split(' ')
-                token_merged
-        |]
+                [| for bpe_token in token_merged -> encoder[bpe_token] |])
+            |> Seq.toArray
 
 module Encoder =
 
     open System.IO
+    open System.Text.Json
 
     let get_encoder () =
+
+        let encoder =
+            use reader = new StreamReader("encoder.json")
+            JsonSerializer.Deserialize<Map<string, int>>(reader.BaseStream)
+        assert(encoder.Count = 256 + 50000 + 1)
+
         let bpe_merges =
             File.ReadLines "vocab.bpe"
                 |> Seq.skip 1
@@ -131,4 +132,5 @@ module Encoder =
                         | _ -> None)
                 |> Seq.toArray
         assert(bpe_merges.Length = 50000)
-        Encoder(Map.empty, bpe_merges)
+
+        Encoder(encoder, bpe_merges)

@@ -22,44 +22,12 @@ type TestClass () =
         Assert.AreEqual('Ġ', map[int ' '])
 
     [<TestMethod>]
-    member _.Tokenize() =
-        let text = "Hello!! I'm Andrej Karpathy. It's 2022. w00t :D 🤗"
-        let pairs =
-            Array.zip
-                (Encoder(Map.empty, Seq.empty).Tokenize(text))
-                [| "Hello"; "!!"; " I"; "'m"; " Andrej"; " Karpathy"; "."; " It"; "'s"; " 2022"; "."; " w"; "00"; "t"; " :"; "D"; " 🤗" |]
-        for expected, actual in pairs do
-            Assert.AreEqual(expected, actual)
-
-    [<TestMethod>]
     member _.Encode() =
-
         let text = "Hello!! I'm Andrej Karpathy. It's 2022. w00t :D 🤗"
         let expected =
-            [|
-                [| "Hello" |]
-                [| "!!" |]
-                [| "ĠI" |]
-                [| "'m" |]
-                [| "ĠAndre"; "j" |]
-                [| "ĠK"; "arp"; "athy" |]
-                [| "." |]
-                [| "ĠIt" |]
-                [| "'s" |]
-                [| "Ġ2022" |]
-                [| "." |]
-                [| "Ġw" |]
-                [| "00" |]
-                [| "t" |]
-                [| "Ġ:" |]
-                [| "D" |]
-                [| "ĠðŁ"; "¤"; "Ĺ" |]
-            |]
-
+            [| 15496; 3228; 314; 1101; 10948; 73; 509; 5117; 10036; 13; 632; 338; 33160; 13; 266; 405; 83; 1058; 35; 12520; 97; 245 |]
         let actual =
             let encoder = Encoder.get_encoder ()
             encoder.Encode(text)
-
-        for expecteds, actuals in Array.zip expected actual do
-            for expectedStr, actualStr in Array.zip expecteds actuals do
-                Assert.AreEqual(expectedStr, actualStr)
+        for expectedItem, actualItem in Array.zip expected actual do
+            Assert.AreEqual(expectedItem, actualItem)

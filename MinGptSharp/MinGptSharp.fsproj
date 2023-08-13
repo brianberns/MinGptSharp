@@ -6,6 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="encoder.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="vocab.bpe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
