@@ -38,16 +38,6 @@ module Bpe =
             |> Seq.distinct
             |> Seq.toArray
 
-    open System.IO
-
-    let get_encoder () =
-        File.ReadLines "vocab.bpe"
-            |> Seq.skip 1
-            |> Seq.choose (fun merge_str ->
-                match Seq.toList <| merge_str.Split(' ') with
-                    | [first; second] -> Some (first, second)
-                    | _ -> None)
-
 type Encoder(encoder, bpe_merges : seq<string * string>) =
 
     // byte encoder/decoder
@@ -82,15 +72,14 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                     let pairs =
                         [|
                             yield! pairs
-                            yield (snd pairs[pairs.Length - 1], "")
+                            yield (Array.last pairs |> snd, "")   // add pair at the end for the last element
                         |]
                     (false, pairs)
                         ||> Seq.mapFold (fun merged (first, second) ->
-                            if merged then
-                                None, false
+                            if merged then None, false            // ignore this pair because previous pair was merged
                             else
                                 if (first, second) = bigram then
-                                    Some (first + second), true
+                                    Some (first + second), true   // merge this pair
                                 else
                                     Some first, false)
                         |> fst
@@ -130,3 +119,19 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                 let token_merged = bpe(token_translated).Split(' ')
                 token_merged
         |]
+
+module Encoder =
+
+    open System.IO
+
+    let get_encoder () =
+        let bpe_merges =
+            File.ReadLines "vocab.bpe"
+                |> Seq.skip 1
+                |> Seq.choose (fun merge_str ->
+                    match Seq.toList <| merge_str.Split(' ') with
+                        | [first; second] -> Some (first, second)
+                        | _ -> None)
+                |> Seq.toArray
+        assert(bpe_merges.Length = 50000)
+        Encoder(Map.empty, bpe_merges)

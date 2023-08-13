@@ -33,29 +33,33 @@ type TestClass () =
 
     [<TestMethod>]
     member _.Encode() =
+
         let text = "Hello!! I'm Andrej Karpathy. It's 2022. w00t :D 🤗"
-        let pairs =
-            Array.zip
-                [|
-                    [| "Hello" |]
-                    [| "!!" |]
-                    [| "ĠI" |]
-                    [| "'m" |]
-                    [| "ĠAndre"; "j" |]
-                    [| "ĠK"; "arp"; "athy" |]
-                    [| "." |]
-                    [| "ĠIt" |]
-                    [| "'s" |]
-                    [| "Ġ2022" |]
-                    [| "." |]
-                    [| "Ġw" |]
-                    [| "00" |]
-                    [| "t" |]
-                    [| "Ġ:" |]
-                    [| "D" |]
-                    [| "ĠðŁ"; "¤"; "Ĺ" |]
-                |]
-                (Encoder(Map.empty, Bpe.get_encoder()).Encode(text))
-        for expecteds, actuals in pairs do
-            for expected, actual in Array.zip expecteds actuals do
-                Assert.AreEqual(expected, actual)
+        let expected =
+            [|
+                [| "Hello" |]
+                [| "!!" |]
+                [| "ĠI" |]
+                [| "'m" |]
+                [| "ĠAndre"; "j" |]
+                [| "ĠK"; "arp"; "athy" |]
+                [| "." |]
+                [| "ĠIt" |]
+                [| "'s" |]
+                [| "Ġ2022" |]
+                [| "." |]
+                [| "Ġw" |]
+                [| "00" |]
+                [| "t" |]
+                [| "Ġ:" |]
+                [| "D" |]
+                [| "ĠðŁ"; "¤"; "Ĺ" |]
+            |]
+
+        let actual =
+            let encoder = Encoder.get_encoder ()
+            encoder.Encode(text)
+
+        for expecteds, actuals in Array.zip expected actual do
+            for expectedStr, actualStr in Array.zip expecteds actuals do
+                Assert.AreEqual(expectedStr, actualStr)
