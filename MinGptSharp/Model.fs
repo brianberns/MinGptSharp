@@ -4,6 +4,7 @@ open System
 
 open TorchSharp
 open type TorchSharp.torch
+open type TensorIndex
 open FSharp.Core.Operators   // reclaim "float" and other F# operators
 
 [<AutoOpen>]
@@ -61,8 +62,8 @@ type CausalSelfAttention(config) as self=
         let att = (q @@ k.transpose(-2, -1)) * s (1.0 / Math.Sqrt(float <| k.size(-1)))
         let att =
             let bias = self._internal_buffers["bias"]
-            let mask = bias[TensorIndex.Slice(), TensorIndex.Slice(), TensorIndex.Slice(0, T), TensorIndex.Slice(0, T)]
-            att.masked_fill((mask = tensor 0), s Double.MinValue)
+            let mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
+            att.masked_fill((mask = tensor 0), s Double.NegativeInfinity)
         let att = softmax(att, dim = -1)
         let att = attn_dropout.forward(att)
         let y = att @@ v // (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
