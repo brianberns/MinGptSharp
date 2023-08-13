@@ -17,3 +17,8 @@ module Utils =
                     let v = f x
                     cache.Add(x, v)
                     v
+
+    open TorchSharp
+
+    // replacement for @ operator
+    let (@@) a b = torch.matmul(a, b)
