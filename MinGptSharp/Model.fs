@@ -49,6 +49,8 @@ type CausalSelfAttention(config) as self=
     let n_head = config.n_head
     let n_embd = config.n_embd
 
+    do self.RegisterComponents()
+
     override _.forward(x) =
         let [| B; T; C |] = x.size() // batch size, sequence length, embedding dimensionality (n_embd)
 
@@ -72,3 +74,26 @@ type CausalSelfAttention(config) as self=
         // output projection
         let y = resid_dropout.forward(c_proj.forward(y))
         y
+
+/// an unassuming Transformer block
+type Block(config) as self =
+    inherit nn.Module<Tensor, Tensor>("Block")
+
+    let ln_1 = nn.LayerNorm(config.n_embd)
+    let attn = new CausalSelfAttention(config)
+    let ln_2 = nn.LayerNorm(config.n_embd)
+    let mlp =
+        nn.ModuleDict<nn.Module<Tensor, Tensor>>(
+            struct ("c_fc", nn.Linear(config.n_embd, 4L * config.n_embd)),
+            struct ("c_proj", nn.Linear(4L * config.n_embd, config.n_embd)),
+            struct ("act", new NewGELU()),
+            struct ("dropout", nn.Dropout(config.resid_pdrop)))
+    let m = mlp
+    let mlpf = fun x -> m["dropout"].forward(m["c_proj"].forward(m["act"].forward(m["c_fc"].forward(x)))) // MLP forward
+
+    do self.RegisterComponents()
+
+    override _.forward(x) =
+        let x = x + attn.forward(ln_1.forward(x))
+        let x = x + mlpf(ln_2.forward(x))
+        x
