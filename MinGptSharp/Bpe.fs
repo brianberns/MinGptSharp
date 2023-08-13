@@ -33,7 +33,20 @@ module Bpe =
             |> Map
 
     let get_pairs word =
-        Seq.pairwise word |> set
+        word
+            |> Seq.pairwise
+            |> Seq.distinct
+            |> Seq.toArray
+
+    open System.IO
+
+    let get_encoder () =
+        File.ReadLines "vocab.bpe"
+            |> Seq.skip 1
+            |> Seq.choose (fun merge_str ->
+                match Seq.toList <| merge_str.Split(' ') with
+                    | [first; second] -> Some (first, second)
+                    | _ -> None)
 
 type Encoder(encoder, bpe_merges : seq<string * string>) =
 
@@ -54,28 +67,46 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
         """'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
             |> RegularExpressions.Regex
 
-    (*
-    let bpe token =
-        let word = token
-        let pairs = Bpe.get_pairs word
+    let bpe (token : string) =
 
-        let rec loop pairs =
+        let rec loop (word : seq<string>) =
+            let pairs = Bpe.get_pairs word
             let bigram =
                 pairs
                     |> Seq.minBy (fun pair ->
                         bpe_ranks
                             |> Map.tryFind pair
                             |> Option.defaultValue Int32.MaxValue)
-            if bpe_ranks.ContainsKey(pair) then
-                let first, second = bigram
+            if bpe_ranks.ContainsKey(bigram) then
+                let new_word =
+                    let pairs =
+                        [|
+                            yield! pairs
+                            yield (snd pairs[pairs.Length - 1], "")
+                        |]
+                    (false, pairs)
+                        ||> Seq.mapFold (fun merged (first, second) ->
+                            if merged then
+                                None, false
+                            else
+                                if (first, second) = bigram then
+                                    Some (first + second), true
+                                else
+                                    Some first, false)
+                        |> fst
+                        |> Seq.choose id
+                        |> Seq.toArray
+                if new_word.Length > 1 then
+                    loop new_word
+                else Array.toSeq new_word
+            else word
 
-                let rec loop i =
-                    let j =
-                        word[i..]
-                            |> Seq.tryFindIndex ((=) first)
-                            |> Option.map (fun j -> word[i..j-1])
-                                loop j
-    *)
+        if token.Length <= 1 then token
+        else
+            token
+                |> Seq.map string
+                |> loop
+                |> String.concat " "
 
     do
         assert(byte_decoder.Count = byte_encoder.Count)
@@ -96,5 +127,6 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                         for b in token_bytes do
                             byte_encoder[int b]
                     |]
-                token_translated
+                let token_merged = bpe(token_translated).Split(' ')
+                token_merged
         |]
