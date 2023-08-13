@@ -59,43 +59,40 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
 
     let bpe (token : string) =
 
-        let rec loop (word : seq<string>) =
-            let pairs = Bpe.get_pairs word
-            let bigram =
-                pairs
-                    |> Seq.minBy (fun pair ->
-                        bpe_ranks
-                            |> Map.tryFind pair
-                            |> Option.defaultValue Int32.MaxValue)
-            if bpe_ranks.ContainsKey(bigram) then
-                let new_word =
+        let rec loop (word : string[]) =
+            if word.Length < 2 then word
+            else
+                let pairs = Bpe.get_pairs word
+                let bigram =
+                    pairs
+                        |> Seq.minBy (fun pair ->
+                            bpe_ranks
+                                |> Map.tryFind pair
+                                |> Option.defaultValue Int32.MaxValue)
+                if bpe_ranks.ContainsKey(bigram) then
                     let pairs =
-                        [|
+                        seq {
                             yield! pairs
                             yield (Array.last pairs |> snd, "")   // add pair at the end for the last element
-                        |]
+                        }
                     (false, pairs)
                         ||> Seq.mapFold (fun merged (first, second) ->
-                            if merged then None, false            // ignore this pair because previous pair was merged
+                            if merged then
+                                None, false                       // ignore this pair because previous pair was merged
+                            elif (first, second) = bigram then
+                                Some (first + second), true       // merge this pair
                             else
-                                if (first, second) = bigram then
-                                    Some (first + second), true   // merge this pair
-                                else
-                                    Some first, false)
+                                Some first, false)
                         |> fst
                         |> Seq.choose id
                         |> Seq.toArray
-                if new_word.Length > 1 then
-                    loop new_word
-                else Array.toSeq new_word
-            else word
+                        |> loop
+                else word
 
-        if token.Length <= 1 then token
-        else
-            token
-                |> Seq.map string
-                |> loop
-                |> String.concat " "
+        token.ToCharArray()
+            |> Array.map string
+            |> loop
+            |> String.concat " "
 
     do
         assert(byte_decoder.Count = byte_encoder.Count)
