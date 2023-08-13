@@ -59,7 +59,7 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
 
     let bpe (token : string) =
 
-        let rec loop (word : string[]) =
+        let rec merge (word : string[]) =
             if word.Length < 2 then word
             else
                 let pairs = Bpe.get_pairs word
@@ -86,12 +86,12 @@ type Encoder(encoder, bpe_merges : seq<string * string>) =
                         |> fst
                         |> Seq.choose id
                         |> Seq.toArray
-                        |> loop
+                        |> merge
                 else word
 
         token.ToCharArray()
             |> Array.map string
-            |> loop
+            |> merge
             |> String.concat " "
 
     do
