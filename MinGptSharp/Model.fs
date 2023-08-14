@@ -3,7 +3,7 @@
 open System
 
 open TorchSharp
-open type TorchSharp.torch
+open type torch
 open type TensorIndex
 open FSharp.Core.Operators   // reclaim "float" and other F# operators
 

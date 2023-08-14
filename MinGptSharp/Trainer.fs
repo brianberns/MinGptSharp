@@ -5,9 +5,13 @@ Simple training loop; Boilerplate that could apply to any arbitrary neural netwo
 so nothing in this file really has anything to do with GPT specifically.
 *)
 
+open System.Collections.Generic
+
 open TorchSharp
-open type TorchSharp.torch
-open type TorchSharp.torch.utils.data
+open type torch
+open type utils.data
+
+#nowarn "25"   // allow pattern matching on listss
 
 type TrainerConfig =
     {
@@ -21,7 +25,7 @@ type TrainerConfig =
         grad_norm_clip : float
     }
 
-type Trainer(config, model : GPT, train_dataset) as self =
+type Trainer(config, model : GPT, train_dataset : Dataset) as self =
 
     static let get_default_config () =
         {
@@ -38,10 +42,8 @@ type Trainer(config, model : GPT, train_dataset) as self =
             grad_norm_clip = 1.0
         }
 
-    let config = config
     let optimizer = None
-    let train_dataset = train_dataset
-    let callbacks = System.Collections.Generic.Dictionary<string, ResizeArray<Trainer -> unit>>()
+    let callbacks = Dictionary<string, ResizeArray<Trainer -> unit>>()
 
     // determine the device we'll train on
     let device =
@@ -78,6 +80,7 @@ type Trainer(config, model : GPT, train_dataset) as self =
 
         // setup the dataloader
         let train_loader =
+            (*
             new DataLoader(
                 train_dataset,
                 sampler=torch.utils.data.RandomSampler(train_dataset, replacement=true, num_samples=int(1e10)),
@@ -85,41 +88,40 @@ type Trainer(config, model : GPT, train_dataset) as self =
                 pin_memory=true,
                 batch_size=config.batch_size,
                 num_workers=config.num_workers)
+            *)
+            new DataLoader(train_dataset, config.batch_size, shuffle=false, num_worker=config.num_workers)
 
         model.train()
-        let iter_num = 0
         let iter_time = System.DateTime.Now
-        let data_iter = iter(train_loader)
 
-        let rec loop () =
+        let rec loop iter_num (data_iter : IEnumerator<_>) =
 
-            // fetch the next batch (x, y) and re-init iterator if needed
-            let batch =
-                try
-                    next(data_iter)
-                with StopIteration ->
-                    let data_iter = iter(train_loader)
-                    next(data_iter)
-            let batch = [for t in batch -> t.``to``(device)]
-            let x, y = batch
+            if data_iter.MoveNext() then
 
-            // forward the model
-            let logits, loss = model.forward(x, y)
+                // fetch the next batch (x, y) and re-init iterator if needed
+                let batch : Dictionary<_, Tensor> = data_iter.Current
+                let batch = [for t in batch.Values -> t.``to``(device)]
+                let [x; y] = batch
 
-            // backprop and update the parameters
-            model.zero_grad(set_to_none=true)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
-            optimizer.step()
+                // forward the model
+                let logits, loss = model.forward(x, y)
 
-            trigger_callbacks("on_batch_end")
-            iter_num += 1
-            let tnow = System.DateTime.Now
-            let iter_dt = tnow - iter_time
-            let iter_time = tnow
+                // backprop and update the parameters
+                model.zero_grad(set_to_none=true)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
+                optimizer.step()
 
-            // termination conditions
-            if config.max_iters <= 0 || iter_num < config.max_iters then
-                loop ()
+                trigger_callbacks("on_batch_end")
+                let tnow = System.DateTime.Now
+                let iter_dt = tnow - iter_time
+                let iter_time = tnow
 
-        loop ()
+                // termination conditions
+                if config.max_iters <= 0 || iter_num < config.max_iters then
+                    loop (iter_num + 1) data_iter
+
+            else
+                train_loader.GetEnumerator() |> loop (iter_num + 1)
+
+        train_loader.GetEnumerator() |> loop 0
