@@ -13,18 +13,6 @@ open type utils.data
 
 #nowarn "25"   // allow pattern matching on listss
 
-type TrainerConfig =
-    {
-        device : string
-        num_workers : int
-        max_iters : int
-        batch_size : int
-        learning_rate : float
-        betas : float * float
-        weight_decay : float
-        grad_norm_clip : float
-    }
-
 type Trainer(config, model : GPT, train_dataset : Dataset) as self =
 
     static let get_default_config () =
@@ -110,7 +98,7 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
                 model.zero_grad((*set_to_none=true*))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
-                optimizer.step()
+                optimizer.step() |> ignore
 
                 trigger_callbacks("on_batch_end")
                 let tnow = System.DateTime.Now

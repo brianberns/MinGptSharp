@@ -31,6 +31,18 @@ type ModelConfig =
         attn_pdrop : float
     }
 
+type TrainerConfig =
+    {
+        device : string
+        num_workers : int
+        max_iters : int
+        batch_size : int
+        learning_rate : float
+        betas : float * float
+        weight_decay : float
+        grad_norm_clip : float
+    }
+
 #nowarn "25"   // allow pattern matching on arrays
 
 /// A vanilla multi-head masked self-attention layer with a projection at the end.
@@ -190,40 +202,52 @@ type GPT(config) as self =
     member _.configure_optimizers(train_config) =
 
         // separate out all parameters to those that will and won't experience regularizing weight decay
-        let decay = set()
-        let no_decay = set()
-        whitelist_weight_modules = (torch.nn.Linear, )
-        blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
-        for mn, m in self.named_modules() do
-            for pn, p in m.named_parameters() do
-                fpn = $"{mn}.{pn}" // full param name
+        let mfpns =
+            [|
+                for mn, m in self.named_modules() do
+                    for struct(pn, p) in m.named_parameters() do
+                        m, $"{mn}.{pn}" // full param name
+            |]
+        let decay, no_decay =
+            ((Set.empty, Set.empty), mfpns)
+                ||> Seq.fold (fun (decay, no_decay) (m, fpn) ->
                 // random note: because named_modules and named_parameters are recursive
                 // we will see the same tensors p many many times. but doing it this way
                 // allows us to know which parent module any tensor p belongs to...
-                if pn.EndsWith("bias") then
+                if fpn.EndsWith("bias") then
                     // all biases will not be decayed
-                    no_decay.add(fpn)
-                elif pn.endswith("weight") && isinstance(m, whitelist_weight_modules) then
-                    // weights of whitelist modules will be weight decayed
-                    decay.add(fpn)
-                elif pn.endswith("weight") && isinstance(m, blacklist_weight_modules) then
-                    // weights of blacklist modules will NOT be weight decayed
-                    no_decay.add(fpn)
+                    Set.add fpn decay,
+                    Set.add fpn no_decay
+                elif fpn.EndsWith("weight") then
+                    match m with
+                        | :? Modules.Linear ->
+                            // weights will be weight decayed
+                            Set.add fpn decay, no_decay
+                        | :? Modules.LayerNorm
+                        | :? Modules.Embedding ->
+                            // weights will NOT be weight decayed
+                            decay, Set.add fpn no_decay
+                else decay, no_decay)
 
         // validate that we considered every parameter
-        param_dict = {pn: p for pn, p in self.named_parameters()}
-        inter_params = decay & no_decay
-        union_params = decay | no_decay
-        assert len(inter_params) == 0, "parameters %s made it into both decay/no_decay sets!" % (str(inter_params), )
-        assert len(param_dict.keys() - union_params) == 0, "parameters %s were not separated into either decay/no_decay set!" \
-                                                    % (str(param_dict.keys() - union_params), )
+        let param_dict = Map [ for struct (pn, p) in self.named_parameters() -> pn, p ]
+        let inter_params = Set.intersect decay no_decay
+        let union_params = Set.union decay no_decay
+        assert (inter_params.Count = 0)
+        assert (param_dict.Count = union_params.Count)
 
         // create the pytorch optimizer object
-        optim_groups = [
-            {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": train_config.weight_decay},
-            {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0},
-        ]
-        optimizer = torch.optim.AdamW(optim_groups, lr=train_config.learning_rate, betas=train_config.betas)
+        let optim_groups =
+            [
+                Modules.AdamW.ParamGroup(
+                    [ for pn in decay -> param_dict[pn] ],
+                    Modules.AdamW.Options(weight_decay=train_config.weight_decay))
+                Modules.AdamW.ParamGroup(
+                    [ for pn in no_decay -> param_dict[pn] ],
+                    Modules.AdamW.Options(weight_decay=0.0))
+            ]
+        let beta1, beta2 = train_config.betas
+        let optimizer = torch.optim.AdamW(optim_groups, lr=train_config.learning_rate, beta1=beta1, beta2=beta2)
         optimizer
 
     override _.forward(idx, targets) =
