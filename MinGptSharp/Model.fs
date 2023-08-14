@@ -104,6 +104,7 @@ type Block(config) as self =
 
 /// GPT Language Model
 type GPT(config) as self =
+    inherit nn.Module<Tensor, Tensor>("GPT")
 
     static let get_default_config () =
         {
@@ -159,9 +160,21 @@ type GPT(config) as self =
             struct ("ln_f", nn.LayerNorm(config.n_embd)))
     let lm_head = nn.Linear(config.n_embd, config.vocab_size, hasBias=false)
 
+    let init_weights(module' : nn.Module) =
+        match module' with
+            | :? Modules.Linear as linear ->
+                torch.nn.init.normal_(linear.weight, mean=0.0, std=0.02) |> ignore
+                if linear.bias |> Option.isSome then
+                    torch.nn.init.zeros_(linear.bias)
+            | :? Modules.Embedding as embedding ->
+                torch.nn.init.normal_(embedding.weight, mean=0.0, std=0.02)
+            | :? Modules.LayerNorm as norm ->
+                torch.nn.init.zeros_(norm.bias) |> ignore
+                torch.nn.init.ones_(norm.weight)
+
     do
         // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
-        self.apply(self._init_weights)
+        self.apply(self._init_weights) |> ignore
         for pn, p in self.named_parameters() do
             if pn.endswith("c_proj.weight") then
                 torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
@@ -169,16 +182,3 @@ type GPT(config) as self =
         // report number of parameters (note we don't count the decoder parameters in lm_head)
         n_params = sum(p.numel() for p in self.transformer.parameters())
         print("number of parameters: %.2fM" % (n_params/1e6,))
-
-    (*
-    let _init_weights(module') =
-        if isinstance(module', nn.Linear) then
-            torch.nn.init.normal_(module'.weight, mean=0.0, std=0.02)
-            if module'.bias |> Option.isSome then
-                torch.nn.init.zeros_(module'.bias)
-        elif isinstance(module', nn.Embedding) then
-            torch.nn.init.normal_(module'.weight, mean=0.0, std=0.02)
-        elif isinstance(module', nn.LayerNorm) then
-            torch.nn.init.zeros_(module'.bias)
-            torch.nn.init.ones_(module'.weight)
-    *)
