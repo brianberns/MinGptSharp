@@ -18,13 +18,13 @@ type NewGELU() =
     override _.forward(x) =
         s 0.5 * x * (s 1.0 + torch.tanh(s (Math.Sqrt(2.0 / Math.PI)) * (x + s 0.044715 * torch.pow(x, s 3.0))))
 
-type CN =
+type CfgNode =
     {
         model_type : string
-        n_layer : unit
+        n_layer : int64
         n_head : int64
         n_embd : int64
-        vocab_size : Option<unit>
+        vocab_size : int64
         block_size : int64
         embd_pdrop : float
         resid_pdrop : float
@@ -105,16 +105,16 @@ type Block(config) as self =
 /// GPT Language Model
 type GPT(config) as self =
 
-    static let get_default_config () : CN =
+    static let get_default_config () =
         {
             // either model_type or (n_layer, n_head, n_embd) must be given in the config
             model_type = "gpt"
-            n_layer = Option.None
-            n_head = Option.None
-            n_embd =  Option.None
+            n_layer = -1L
+            n_head = -1L
+            n_embd =  -1L
             // these options must be filled in externally
-            vocab_size = Option.None
-            block_size = Option.None
+            vocab_size = -1L
+            block_size = -1L
             // dropout hyperparameters
             embd_pdrop = 0.1
             resid_pdrop = 0.1
@@ -122,35 +122,34 @@ type GPT(config) as self =
         }
 
     do
-        assert(config.vocab_size |> Option.isSome)
-        assert(config.block_size |> Option.isSome)
+        assert(config.vocab_size > 0)
+        assert(config.block_size > 0)
     let block_size = config.block_size
 
-    let type_given = config.model_type |> Option.isSome
-    let params_given =
-        config.n_layer |> Option.isSome
-            && config.n_head |> Option.isSome
-            && config.n_embd |> Opiton.isSome
+    let type_given = String.IsNullOrWhiteSpace(config.model_type) |> not
+    let params_given = config.n_layer > 0 && config.n_head > 0 && config.n_embd > 0
     do assert (type_given <> params_given) // exactly one of these (XOR)
-    if type_given then
-        // translate from model_type to detailed configuration
-        config.merge_from_dict({
-            // names follow the huggingface naming conventions
-            // GPT-1
-            "openai-gpt":   dict(n_layer=12, n_head=12, n_embd=768),  // 117M params
-            // GPT-2 configs
-            "gpt2":         dict(n_layer=12, n_head=12, n_embd=768),  // 124M params
-            "gpt2-medium":  dict(n_layer=24, n_head=16, n_embd=1024), // 350M params
-            "gpt2-large":   dict(n_layer=36, n_head=20, n_embd=1280), // 774M params
-            "gpt2-xl":      dict(n_layer=48, n_head=25, n_embd=1600), // 1558M params
-            // Gophers
-            "gopher-44m":   dict(n_layer=8, n_head=16, n_embd=512),
-            // (there are a number more...)
-            // I made these tiny models up
-            "gpt-mini":     dict(n_layer=6, n_head=6, n_embd=192),
-            "gpt-micro":    dict(n_layer=4, n_head=4, n_embd=128),
-            "gpt-nano":     dict(n_layer=3, n_head=3, n_embd=48),
-        }[config.model_type])
+    let config =
+        if type_given then
+            // translate from model_type to detailed configuration
+            match config.model_type with
+                // names follow the huggingface naming conventions
+                // GPT-1
+                | "openai-gpt" ->  { config with n_layer=12; n_head=12; n_embd=768 }  // 117M params
+                // GPT-2 configs
+                | "gpt2" ->        { config with n_layer=12; n_head=12; n_embd=768 }  // 124M params
+                | "gpt2-medium" -> { config with n_layer=24; n_head=16; n_embd=1024 } // 350M params
+                | "gpt2-large" ->  { config with n_layer=36; n_head=20; n_embd=1280 } // 774M params
+                | "gpt2-xl"  ->    { config with n_layer=48; n_head=25; n_embd=1600 } // 1558M params
+                // Gophers
+                | "gopher-44m" ->  { config with n_layer=8; n_head=16; n_embd=512 }
+                // (there are a number more...)
+                // I made these tiny models up
+                | "gpt-mini" ->    { config with n_layer=6; n_head=6; n_embd=192 }
+                | "gpt-micro" -    { config with n_layer=4; n_head=4; n_embd=128 }
+                | "gpt-nano" ->    { config with n_layer=3; n_head=3; n_embd=48 }
+            }
+        else config
 
     let transformer = nn.ModuleDict(dict(
         wte = nn.Embedding(config.vocab_size, config.n_embd),
@@ -158,8 +157,8 @@ type GPT(config) as self =
         drop = nn.Dropout(config.embd_pdrop),
         h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ln_f = nn.LayerNorm(config.n_embd),
-    ))
-    self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        ))
+    let lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
     // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
     self.apply(self._init_weights)
@@ -171,6 +170,7 @@ type GPT(config) as self =
     n_params = sum(p.numel() for p in self.transformer.parameters())
     print("number of parameters: %.2fM" % (n_params/1e6,))
 
+    (*
     let _init_weights(module') =
         if isinstance(module', nn.Linear) then
             torch.nn.init.normal_(module'.weight, mean=0.0, std=0.02)
@@ -181,3 +181,4 @@ type GPT(config) as self =
         elif isinstance(module', nn.LayerNorm) then
             torch.nn.init.zeros_(module'.bias)
             torch.nn.init.ones_(module'.weight)
+    *)
