@@ -104,7 +104,7 @@ type Block(config) as self =
 
 /// GPT Language Model
 type GPT(config) as self =
-    inherit nn.Module<Tensor, Option<Tensor>, Tensor * Option<Tensor>>("GPT")
+    inherit nn.Module<Tensor, Tensor, Tensor * Tensor>("GPT")
 
     static let get_default_config () =
         {
@@ -204,8 +204,6 @@ type GPT(config) as self =
 
         // if we are given some desired targets also calculate the loss
         let loss =
-            targets
-                |> Option.map (fun targets ->
-                    nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index = -1))
+            nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index = -1)
 
         logits, loss
