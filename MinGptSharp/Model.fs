@@ -195,9 +195,10 @@ type GPT(config) as self =
             (transformer[name] :?> nn.Module<Tensor, Tensor>).forward(value)
         let tok_emb = transform "wte" idx // token embeddings of shape (b, t, n_embd)
         let pos_emb = transform "wpe" pos // position embeddings of shape (1, t, n_embd)
-        let mutable x = transform "drop" (tok_emb + pos_emb)
-        for block in (transformer["h"] :?> Modules.ModuleList<nn.Module<Tensor, Tensor>>) do
-            x <- block.forward(x)
+        let x = transform "drop" (tok_emb + pos_emb)
+        let x =
+            (x, transformer["h"] :?> Modules.ModuleList<nn.Module<Tensor, Tensor>>)
+                ||> Seq.fold (fun x block -> block.forward(x))
         let x = transform "ln_f" x
         let logits = lm_head.forward(x)
 
