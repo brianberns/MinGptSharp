@@ -11,7 +11,7 @@ type Assert() =
         Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual<'t>(expected, actual, message)
 
 [<TestClass>]
-type TestClass () =
+type Bpe() =
 
     [<TestMethod>]
     member _.BytesToUnicode() =
