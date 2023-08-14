@@ -21,7 +21,7 @@ type NewGELU() =
 type CfgNode =
     {
         model_type : string
-        n_layer : int64
+        n_layer : int
         n_head : int64
         n_embd : int64
         vocab_size : int64
@@ -109,7 +109,7 @@ type GPT(config) as self =
         {
             // either model_type or (n_layer, n_head, n_embd) must be given in the config
             model_type = "gpt"
-            n_layer = -1L
+            n_layer = -1
             n_head = -1L
             n_embd =  -1L
             // these options must be filled in externally
@@ -135,40 +135,40 @@ type GPT(config) as self =
             match config.model_type with
                 // names follow the huggingface naming conventions
                 // GPT-1
-                | "openai-gpt" ->  { config with n_layer=12; n_head=12; n_embd=768 }  // 117M params
+                | "openai-gpt" ->  { config with n_layer=12; n_head=12; n_embd= 768 } // 117M params
                 // GPT-2 configs
-                | "gpt2" ->        { config with n_layer=12; n_head=12; n_embd=768 }  // 124M params
+                | "gpt2" ->        { config with n_layer=12; n_head=12; n_embd= 768 } // 124M params
                 | "gpt2-medium" -> { config with n_layer=24; n_head=16; n_embd=1024 } // 350M params
                 | "gpt2-large" ->  { config with n_layer=36; n_head=20; n_embd=1280 } // 774M params
                 | "gpt2-xl"  ->    { config with n_layer=48; n_head=25; n_embd=1600 } // 1558M params
                 // Gophers
-                | "gopher-44m" ->  { config with n_layer=8; n_head=16; n_embd=512 }
+                | "gopher-44m" ->  { config with n_layer= 8; n_head=16; n_embd= 512 }
                 // (there are a number more...)
                 // I made these tiny models up
-                | "gpt-mini" ->    { config with n_layer=6; n_head=6; n_embd=192 }
-                | "gpt-micro" -    { config with n_layer=4; n_head=4; n_embd=128 }
-                | "gpt-nano" ->    { config with n_layer=3; n_head=3; n_embd=48 }
-            }
+                | "gpt-mini" ->    { config with n_layer= 6; n_head= 6; n_embd= 192 }
+                | "gpt-micro" ->   { config with n_layer= 4; n_head= 4; n_embd= 128 }
+                | "gpt-nano" ->    { config with n_layer= 3; n_head= 3; n_embd=  48 }
         else config
 
-    let transformer = nn.ModuleDict(dict(
-        wte = nn.Embedding(config.vocab_size, config.n_embd),
-        wpe = nn.Embedding(config.block_size, config.n_embd),
-        drop = nn.Dropout(config.embd_pdrop),
-        h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-        ln_f = nn.LayerNorm(config.n_embd),
-        ))
-    let lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+    let transformer =
+        nn.ModuleDict<nn.Module>(
+            struct ("wte", nn.Embedding(config.vocab_size, config.n_embd)),
+            struct ("wpe", nn.Embedding(config.block_size, config.n_embd)),
+            struct ("drop", nn.Dropout(config.embd_pdrop)),
+            struct ("h", nn.ModuleList([| for _ in range(config.n_layer) -> new Block(config) |])),
+            struct ("ln_f", nn.LayerNorm(config.n_embd)))
+    let lm_head = nn.Linear(config.n_embd, config.vocab_size, hasBias=false)
 
-    // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
-    self.apply(self._init_weights)
-    for pn, p in self.named_parameters():
-        if pn.endswith('c_proj.weight'):
-            torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
+    do
+        // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
+        self.apply(self._init_weights)
+        for pn, p in self.named_parameters() do
+            if pn.endswith("c_proj.weight") then
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
 
-    // report number of parameters (note we don't count the decoder parameters in lm_head)
-    n_params = sum(p.numel() for p in self.transformer.parameters())
-    print("number of parameters: %.2fM" % (n_params/1e6,))
+        // report number of parameters (note we don't count the decoder parameters in lm_head)
+        n_params = sum(p.numel() for p in self.transformer.parameters())
+        print("number of parameters: %.2fM" % (n_params/1e6,))
 
     (*
     let _init_weights(module') =
