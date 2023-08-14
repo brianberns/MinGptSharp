@@ -1,25 +1,25 @@
 ﻿namespace MinGptSharp
 
 (*
-   A byte-pair encoder translates a string into a sequence of tokens,
-   where each token is an integer representing a frequently-occurring
-   series of characters in English (e.g. "ing"). The encoding process is:
+A byte-pair encoder translates a string into a sequence of tokens,
+where each token is an integer representing a frequently-occurring
+series of characters in English (e.g. "ing"). The encoding process is:
   
-   1. Use a regex to break the input text into pieces, such as
-      " Karpathy". (Note the leading space in this example.)
+1. Use a regex to break the input text into pieces, such as
+    " Karpathy". (Note the leading space in this example.)
   
-   2. Encode each byte of each piece into a Unicode character. E.g.
-      " Karpathy" -> "ĠKarpathy". (The leading space is encoded as
-      a visible Unicode character.)
+2. Encode each byte of each piece into a Unicode character. E.g.
+    " Karpathy" -> "ĠKarpathy". (The leading space is encoded as
+    a visible Unicode character.)
   
-   3. Merge the Unicode characters of each piece into tokens. E.g.
-      "ĠKarpathy" -> "ĠK", "arp", "athy"
+3. Merge the Unicode characters of each piece into tokens. E.g.
+    "ĠKarpathy" -> "ĠK", "arp", "athy"
   
-   4. Encode each token as an integer. E.g. "ĠK", "arp", "athy" ->
-      509, 5117, 10036.
+4. Encode each token as an integer. E.g. "ĠK", "arp", "athy" ->
+    509, 5117, 10036.
 
-   In this file,  I've attempted to follow minGPT's general structure,
-   but with a functional approach and my own comments.
+In this file,  I've attempted to follow minGPT's general structure,
+but with a functional approach and my own comments.
  *)
 
 module Bpe =

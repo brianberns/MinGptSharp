@@ -18,7 +18,7 @@ type NewGELU() =
     override _.forward(x) =
         s 0.5 * x * (s 1.0 + torch.tanh(s (Math.Sqrt(2.0 / Math.PI)) * (x + s 0.044715 * torch.pow(x, s 3.0))))
 
-type CfgNode =
+type ModelConfig =
     {
         model_type : string
         n_layer : int
