@@ -160,25 +160,25 @@ type GPT(config) as self =
             struct ("ln_f", nn.LayerNorm(config.n_embd)))
     let lm_head = nn.Linear(config.n_embd, config.vocab_size, hasBias=false)
 
-    let init_weights(module' : nn.Module) =
+    let _init_weights(module' : nn.Module) =
         match module' with
             | :? Modules.Linear as linear ->
                 torch.nn.init.normal_(linear.weight, mean=0.0, std=0.02) |> ignore
-                if linear.bias |> Option.isSome then
-                    torch.nn.init.zeros_(linear.bias)
+                if isNull linear.bias |> not then
+                    torch.nn.init.zeros_(linear.bias) |> ignore
             | :? Modules.Embedding as embedding ->
-                torch.nn.init.normal_(embedding.weight, mean=0.0, std=0.02)
+                torch.nn.init.normal_(embedding.weight, mean=0.0, std=0.02) |> ignore
             | :? Modules.LayerNorm as norm ->
                 torch.nn.init.zeros_(norm.bias) |> ignore
-                torch.nn.init.ones_(norm.weight)
+                torch.nn.init.ones_(norm.weight) |> ignore
 
     do
         // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
-        self.apply(self._init_weights) |> ignore
+        self.apply(_init_weights) |> ignore
         for pn, p in self.named_parameters() do
-            if pn.endswith("c_proj.weight") then
-                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
+            if pn.EndsWith("c_proj.weight") then
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/Math.Sqrt(2.0 * float config.n_layer)) |> ignore
 
         // report number of parameters (note we don't count the decoder parameters in lm_head)
-        n_params = sum(p.numel() for p in self.transformer.parameters())
-        print("number of parameters: %.2fM" % (n_params/1e6,))
+        let n_params = Seq.sum [ for p in transformer.parameters() -> p.numel() ]
+        printfn "number of parameters: %.2fM" (float n_params/1.0e6)
