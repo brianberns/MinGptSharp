@@ -104,7 +104,7 @@ type Block(config) as self =
 
 /// GPT Language Model
 type GPT(config) as self =
-    inherit nn.Module<Tensor, Tensor>("GPT")
+    inherit nn.Module<Tensor, Option<Tensor>, Tensor * Option<Tensor>>("GPT")
 
     static let get_default_config () =
         {
@@ -160,8 +160,8 @@ type GPT(config) as self =
             struct ("ln_f", nn.LayerNorm(config.n_embd)))
     let lm_head = nn.Linear(config.n_embd, config.vocab_size, hasBias=false)
 
-    let _init_weights(module' : nn.Module) =
-        match module' with
+    let _init_weights(mdule : nn.Module) =
+        match mdule with
             | :? Modules.Linear as linear ->
                 torch.nn.init.normal_(linear.weight, mean=0.0, std=0.02) |> ignore
                 if isNull linear.bias |> not then
@@ -183,4 +183,28 @@ type GPT(config) as self =
         let n_params = Seq.sum [ for p in transformer.parameters() -> p.numel() ]
         printfn "number of parameters: %.2fM" (float n_params/1.0e6)
 
-    override _.forward(x) = x
+    override _.forward(idx, targets) =
+        let device = idx.device
+        let [| b; t; |] = idx.size()
+        if t > block_size then
+            failwith $"Cannot forward sequence of length {t}, block size is only {block_size}"
+        let pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) // shape (1, t)
+
+        // forward the GPT model itself
+        let transform (name : string) value =
+            (transformer[name] :?> nn.Module<Tensor, Tensor>).forward(value)
+        let tok_emb = transform "wte" idx // token embeddings of shape (b, t, n_embd)
+        let pos_emb = transform "wpe" pos // position embeddings of shape (1, t, n_embd)
+        let mutable x = transform "drop" (tok_emb + pos_emb)
+        for block in (transformer["h"] :?> Modules.ModuleList<nn.Module<Tensor, Tensor>>) do
+            x <- block.forward(x)
+        let x = transform "ln_f" x
+        let logits = lm_head.forward(x)
+
+        // if we are given some desired targets also calculate the loss
+        let loss =
+            targets
+                |> Option.map (fun targets ->
+                    nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index = -1))
+
+        logits, loss
