@@ -17,6 +17,9 @@
   
    4. Encode each token as an integer. E.g. "ĠK", "arp", "athy" ->
       509, 5117, 10036.
+
+   In this file,  I've attempted to follow minGPT's general structure,
+   but with a functional approach and my own comments.
  *)
 
 module Bpe =
