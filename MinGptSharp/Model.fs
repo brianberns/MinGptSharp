@@ -170,6 +170,8 @@ type GPT(config) as self =
             | _ -> ()
 
     do
+        self.RegisterComponents()
+
         // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
         self.apply(_init_weights) |> ignore
         for pn, p in self.named_parameters() do
@@ -178,7 +180,7 @@ type GPT(config) as self =
 
         // report number of parameters (note we don't count the decoder parameters in lm_head)
         let n_params = Seq.sum [ for p in transformer.parameters() -> p.numel() ]
-        printfn "number of parameters: %.2fM" (float n_params/1.0e6)
+        printfn "number of parameters: %d" n_params
 
     static member get_default_config() =
         {
@@ -217,8 +219,7 @@ type GPT(config) as self =
                 // allows us to know which parent module any tensor p belongs to...
                 if fpn.EndsWith("bias") then
                     // all biases will not be decayed
-                    Set.add fpn decay,
-                    Set.add fpn no_decay
+                    decay, Set.add fpn no_decay
                 elif fpn.EndsWith("weight") then
                     match m with
                         | :? Modules.Linear ->
@@ -228,6 +229,7 @@ type GPT(config) as self =
                         | :? Modules.Embedding ->
                             // weights will NOT be weight decayed
                             decay, Set.add fpn no_decay
+                        | _ -> decay, no_decay
                 else decay, no_decay)
 
         // validate that we considered every parameter
