@@ -75,9 +75,8 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
             new DataLoader(train_dataset, config.batch_size, shuffle=false, num_worker=config.num_workers)
 
         model.train()
-        let iter_time = System.DateTime.Now
 
-        let rec loop iter_num (data_iter : IEnumerator<_>) =
+        let rec loop iter_num iter_time (data_iter : IEnumerator<_>) =
 
             if data_iter.MoveNext() then
 
@@ -104,9 +103,9 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
-                    loop (iter_num + 1) data_iter
+                    loop (iter_num + 1) iter_time data_iter
 
             else
-                train_loader.GetEnumerator() |> loop (iter_num + 1)
+                train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
-        train_loader.GetEnumerator() |> loop 0
+        train_loader.GetEnumerator() |> loop 0 System.DateTime.Now
