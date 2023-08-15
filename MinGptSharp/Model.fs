@@ -18,31 +18,6 @@ type NewGELU() =
     override _.forward(x) =
         s 0.5 * x * (s 1.0 + torch.tanh(s (Math.Sqrt(2.0 / Math.PI)) * (x + s 0.044715 * torch.pow(x, s 3.0))))
 
-type ModelConfig =
-    {
-        model_type : string
-        n_layer : int
-        n_head : int64
-        n_embd : int64
-        vocab_size : int64
-        block_size : int64
-        embd_pdrop : float
-        resid_pdrop : float
-        attn_pdrop : float
-    }
-
-type TrainerConfig =
-    {
-        device : string
-        num_workers : int
-        max_iters : int
-        batch_size : int
-        learning_rate : float
-        betas : float * float
-        weight_decay : float
-        grad_norm_clip : float
-    }
-
 #nowarn "25"   // allow pattern matching on arrays
 
 /// A vanilla multi-head masked self-attention layer with a projection at the end.

@@ -66,6 +66,8 @@ type SortDataset(split, ?length, ?num_digits) as self =
 
 module Program =
 
+    Utils.set_seed 0L
+
     let train_dataset = new SortDataset("train")
     let test_dataset = new SortDataset("test")
     let x, y =

@@ -38,3 +38,32 @@ module Utils =
                 | Some s, None -> t[torch.TensorIndex.Slice(s)] <- v
                 | None, Some e -> t[torch.TensorIndex.Slice(stop=e)] <- v
                 | None, None -> t[torch.TensorIndex.Slice()] <- v
+
+    let set_seed seed =
+        torch.manual_seed(seed) |> ignore
+        torch.cuda.manual_seed_all(seed)
+
+type ModelConfig =
+    {
+        model_type : string
+        n_layer : int
+        n_head : int64
+        n_embd : int64
+        vocab_size : int64
+        block_size : int64
+        embd_pdrop : float
+        resid_pdrop : float
+        attn_pdrop : float
+    }
+
+type TrainerConfig =
+    {
+        device : string
+        num_workers : int
+        max_iters : int
+        batch_size : int
+        learning_rate : float
+        betas : float * float
+        weight_decay : float
+        grad_norm_clip : float
+    }
