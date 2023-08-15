@@ -11,7 +11,7 @@ open FSharp.Core.Operators   // reclaim "int64" and other F# operators
 /// input:  0 0 2 1 0 1 0 0 0 1 1
 /// output: I I I I I 0 0 0 1 1 2
 /// where I is "ignore", as the transformer is reading the input sequence
-type SortDataset(split, ?length, ?num_digits) as self =
+type SortDataset(split, ?length, ?num_digits) =
     inherit Dataset()
 
     let length = defaultArg length 6
@@ -19,13 +19,9 @@ type SortDataset(split, ?length, ?num_digits) as self =
 
     do assert(List.contains split ["train"; "test"])
 
-    override _.Count with get() = 10000
+    let nTensorDicts = 10000
 
-    member _.get_vocab_size() = num_digits
-
-    member _.get_block_size() = length * 2 - 1
-
-    override _.GetTensor(idx) =
+    let makeTensorDict () =
 
         // use rejection sampling to generate an input example from the desired split
         let rec loop () =
@@ -43,8 +39,7 @@ type SortDataset(split, ?length, ?num_digits) as self =
             if reject then loop ()
             else
                 // figure out if this generated example is train or test based on its hash
-                let h = inp.GetHashCode()
-                let inp_split = if h % 4 = 0 then "test" else "train" // designate 25% of examples as test
+                let inp_split = if torch.rand(1).item() < 0.25f then "test" else "train" // designate 25% of examples as test
                 if inp_split = split then
                     inp
                 else loop ()
@@ -64,9 +59,21 @@ type SortDataset(split, ?length, ?num_digits) as self =
         y[.. int64 length - 1L] <- -1
         dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
 
+    let tensorDicts =
+        Array.init nTensorDicts (fun _ -> makeTensorDict ())
+
+    override _.Count with get() = nTensorDicts
+
+    member _.get_vocab_size() = num_digits
+
+    member _.get_block_size() = length * 2 - 1
+
+    override _.GetTensor(idx) =
+        tensorDicts[int idx]
+
 module Program =
 
-    Utils.set_seed 0L
+    set_seed 0L
 
     let train_dataset = new SortDataset("train")
     let test_dataset = new SortDataset("test")
