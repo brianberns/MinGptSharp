@@ -19,18 +19,18 @@ type SortDataset(split, ?length, ?num_digits) as self =
 
     do assert(List.contains split ["train"; "test"])
 
-    override _.Count with get() = length
+    override _.Count with get() = 10000
 
     member _.get_vocab_size() = num_digits
 
-    member _.get_block_size() = self.Count * 2L - 1L
+    member _.get_block_size() = length * 2 - 1
 
     override _.GetTensor(idx) =
 
         // use rejection sampling to generate an input example from the desired split
         let rec loop () =
             // generate some random integers
-            let inp = torch.randint(int64 num_digits, size=[|self.Count|], dtype=torch.long)
+            let inp = torch.randint(int64 num_digits, size=[|int64 length|], dtype=torch.long)
             // half of the time let's try to boost the number of examples that 
             // have a large number of repeats, as this is what the model seems to struggle
             // with later in training, and they are kind of rare
@@ -38,7 +38,7 @@ type SortDataset(split, ?length, ?num_digits) as self =
                 if torch.rand(1).item() < 0.5f then
                     let struct (unique, _, _) = inp.unique()
                     // too many unqiue digits, re-sample
-                    unique.NumberOfElements > self.Count / 2L
+                    unique.NumberOfElements > int64 length / 2L
                 else false
             if reject then loop ()
             else
@@ -61,7 +61,7 @@ type SortDataset(split, ?length, ?num_digits) as self =
         let x = cat[.. cat.NumberOfElements - 1L].clone()
         let y = cat[1 ..].clone()
         // we only want to predict at output locations, mask out the loss at the input locations
-        y[.. self.Count-1L] <- -1
+        y[.. int64 length - 1L] <- -1
         dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
 
 module Program =

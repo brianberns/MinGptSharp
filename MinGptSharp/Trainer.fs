@@ -80,7 +80,7 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
 
             if data_iter.MoveNext() then
 
-                // fetch the next batch (x, y) and re-init iterator if needed
+                // fetch the next batch (x, y)
                 let batch : Dictionary<_, Tensor> = data_iter.Current
                 let batch = [for t in batch.Values -> t.``to``(device)]
                 let [x; y] = batch
