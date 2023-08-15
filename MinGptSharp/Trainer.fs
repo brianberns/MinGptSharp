@@ -15,21 +15,6 @@ open type utils.data
 
 type Trainer(config, model : GPT, train_dataset : Dataset) as self =
 
-    static let get_default_config () =
-        {
-            // device to train on
-            device = "auto"
-            // dataloder parameters
-            num_workers = 4
-            // optimizer parameters
-            max_iters = -1
-            batch_size = 64
-            learning_rate = 3e-4
-            betas = (0.9, 0.95)
-            weight_decay = 0.1 // only applied on matmul weights
-            grad_norm_clip = 1.0
-        }
-
     let optimizer = None
     let callbacks = Dictionary<string, ResizeArray<Trainer -> unit>>()
 
@@ -41,11 +26,6 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
             config.device
     let model = model.``to``(device)
     do printfn $"running on device {device}"
-
-    // variables that will be assigned to trainer class later for logging and etc
-    let iter_num = 0
-    let iter_time = 0.0
-    let iter_dt = 0.0
 
     let add_callback (onevent: string) callback =
         callbacks[onevent].Add(callback)
@@ -104,6 +84,8 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
                 let tnow = System.DateTime.Now
                 let iter_dt = tnow - iter_time
                 let iter_time = tnow
+                if iter_num % 100 = 0 then
+                    printfn $"iter_dt {iter_dt}; iter {iter_num}: train loss {loss}"
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
@@ -113,3 +95,18 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
                 train_loader.GetEnumerator() |> loop (iter_num + 1)
 
         train_loader.GetEnumerator() |> loop 0
+
+    static member get_default_config() =
+        {
+            // device to train on
+            device = "auto"
+            // dataloder parameters
+            num_workers = 4
+            // optimizer parameters
+            max_iters = -1
+            batch_size = 64
+            learning_rate = 3e-4
+            betas = (0.9, 0.95)
+            weight_decay = 0.1 // only applied on matmul weights
+            grad_norm_clip = 1.0
+        }

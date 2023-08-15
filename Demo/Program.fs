@@ -19,7 +19,7 @@ type SortDataset(split, ?length, ?num_digits) as self =
 
     do assert(List.contains split ["train"; "test"])
 
-    override _.Count with get() = 10000L
+    override _.Count with get() = length
 
     member _.get_vocab_size() = num_digits
 
@@ -35,7 +35,7 @@ type SortDataset(split, ?length, ?num_digits) as self =
             // have a large number of repeats, as this is what the model seems to struggle
             // with later in training, and they are kind of rare
             let reject =
-                if torch.rand(1).item() < 0.5 then
+                if torch.rand(1).item() < 0.5f then
                     let struct (unique, _, _) = inp.unique()
                     // too many unqiue digits, re-sample
                     unique.NumberOfElements > self.Count / 2L
@@ -52,8 +52,7 @@ type SortDataset(split, ?length, ?num_digits) as self =
         let inp = loop ()
         
         // solve the task: i.e. sort
-        let struct (sorted, _) = torch.sort(inp)
-        let sol = sorted[0]
+        let struct (sol, _) = torch.sort(inp)
 
         // concatenate the problem specification and the solution
         let cat = torch.cat(ResizeArray [inp; sol], dim=0)
@@ -63,5 +62,32 @@ type SortDataset(split, ?length, ?num_digits) as self =
         let y = cat[1 ..].clone()
         // we only want to predict at output locations, mask out the loss at the input locations
         y[.. self.Count-1L] <- -1
-        dict [ "x", x; "y", y] |> System.Collections.Generic.Dictionary
+        dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
 
+module Program =
+
+    let train_dataset = new SortDataset("train")
+    let test_dataset = new SortDataset("test")
+    let x, y =
+        let dict = train_dataset.GetTensor(0L)
+        dict["x"], dict["y"]
+    for a, b in Seq.zip (x.data<int64>()) (y.data<int64>()) do
+        printfn $"{a} {b}"
+
+    let model_config =
+        {
+            GPT.get_default_config() with
+                model_type = "gpt-nano"
+                vocab_size = train_dataset.get_vocab_size()
+                block_size = train_dataset.get_block_size()
+        }
+    let model = new GPT(model_config)
+
+    let train_config =
+        {
+            Trainer.get_default_config() with
+                learning_rate = 5e-4 // the model we're using is so small that we can go a bit faster
+                max_iters = 2000
+                num_workers = 0
+        }
+    let trainer = Trainer(train_config, model, train_dataset)

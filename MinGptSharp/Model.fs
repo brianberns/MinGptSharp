@@ -118,22 +118,6 @@ type Block(config) as self =
 type GPT(config) as self =
     inherit nn.Module<Tensor, Tensor, Tensor * Tensor>("GPT")
 
-    static let get_default_config () =
-        {
-            // either model_type or (n_layer, n_head, n_embd) must be given in the config
-            model_type = "gpt"
-            n_layer = -1
-            n_head = -1L
-            n_embd =  -1L
-            // these options must be filled in externally
-            vocab_size = -1L
-            block_size = -1L
-            // dropout hyperparameters
-            embd_pdrop = 0.1
-            resid_pdrop = 0.1
-            attn_pdrop = 0.1
-        }
-
     do
         assert(config.vocab_size > 0)
         assert(config.block_size > 0)
@@ -183,6 +167,7 @@ type GPT(config) as self =
             | :? Modules.LayerNorm as norm ->
                 torch.nn.init.zeros_(norm.bias) |> ignore
                 torch.nn.init.ones_(norm.weight) |> ignore
+            | _ -> ()
 
     do
         // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
@@ -194,6 +179,22 @@ type GPT(config) as self =
         // report number of parameters (note we don't count the decoder parameters in lm_head)
         let n_params = Seq.sum [ for p in transformer.parameters() -> p.numel() ]
         printfn "number of parameters: %.2fM" (float n_params/1.0e6)
+
+    static member get_default_config() =
+        {
+            // either model_type or (n_layer, n_head, n_embd) must be given in the config
+            model_type = "gpt"
+            n_layer = -1
+            n_head = -1L
+            n_embd =  -1L
+            // these options must be filled in externally
+            vocab_size = -1L
+            block_size = -1L
+            // dropout hyperparameters
+            embd_pdrop = 0.1
+            resid_pdrop = 0.1
+            attn_pdrop = 0.1
+        }
 
     /// This long function is unfortunately doing something very simple and is being very defensive:
     /// We are separating out all parameters of the model into two buckets: those that will experience
