@@ -265,7 +265,7 @@ type GPT(config) as self =
         let pos_emb = transform "wpe" pos // position embeddings of shape (1, t, n_embd)
         let x = transform "drop" (tok_emb + pos_emb)
         let x =
-            (x, transformer["h"] :?> Modules.ModuleList<nn.Module<Tensor, Tensor>>)
+            (x, transformer["h"] :?> Modules.ModuleList<Block>)
                 ||> Seq.fold (fun x block -> block.forward(x))
         let x = transform "ln_f" x
         let logits = lm_head.forward(x)

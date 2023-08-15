@@ -41,7 +41,22 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
         for callback in list do
             callback(self)
 
-    let run() =
+    static member get_default_config() =
+        {
+            // device to train on
+            device = "auto"
+            // dataloder parameters
+            num_workers = 4
+            // optimizer parameters
+            max_iters = -1
+            batch_size = 64
+            learning_rate = 3e-4
+            betas = (0.9, 0.95)
+            weight_decay = 0.1 // only applied on matmul weights
+            grad_norm_clip = 1.0
+        }
+
+    member _.run() =
 
         // setup the optimizer
         let optimizer = model.configure_optimizers(config)
@@ -85,7 +100,7 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
                 let iter_dt = tnow - iter_time
                 let iter_time = tnow
                 if iter_num % 100 = 0 then
-                    printfn $"iter_dt {iter_dt}; iter {iter_num}: train loss {loss}"
+                    printfn $"iter_dt {iter_dt}; iter {iter_num}: train loss {loss.item<float32>()}"
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
@@ -95,18 +110,3 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
                 train_loader.GetEnumerator() |> loop (iter_num + 1)
 
         train_loader.GetEnumerator() |> loop 0
-
-    static member get_default_config() =
-        {
-            // device to train on
-            device = "auto"
-            // dataloder parameters
-            num_workers = 4
-            // optimizer parameters
-            max_iters = -1
-            batch_size = 64
-            learning_rate = 3e-4
-            betas = (0.9, 0.95)
-            weight_decay = 0.1 // only applied on matmul weights
-            grad_norm_clip = 1.0
-        }

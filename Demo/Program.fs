@@ -91,3 +91,4 @@ module Program =
                 num_workers = 0
         }
     let trainer = Trainer(train_config, model, train_dataset)
+    trainer.run ()
