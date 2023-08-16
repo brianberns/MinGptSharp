@@ -79,11 +79,7 @@ type Mlp(config) as self =
     do self.RegisterComponents()
 
     override _.forward(x) =
-        x
-            |> c_fc.forward
-            |> c_proj.forward
-            |> act.forward
-            |> dropout.forward
+        x --> c_fc --> c_proj --> act --> dropout
 
 /// an unassuming Transformer block
 type Block(config) as self =
@@ -265,9 +261,7 @@ type GPT(config) as self =
 
         // forward the GPT model itself
         let logits =
-            idx
-                |> transformer.forward
-                |> lm_head.forward
+            idx --> transformer --> lm_head
 
         // calculate the loss
         let loss =
