@@ -66,6 +66,25 @@ type CausalSelfAttention(config) as self=
         let y = resid_dropout.forward(c_proj.forward(y))
         y
 
+/// This is a submodule of Block in the original minGPT, but it works better as a
+/// top-level module in F#.
+type Mlp(config) as self =
+    inherit nn.Module<Tensor, Tensor>("Mlp")
+
+    let c_fc = nn.Linear(config.n_embd, 4L * config.n_embd)
+    let c_proj = nn.Linear(4L * config.n_embd, config.n_embd)
+    let act = new NewGELU()
+    let dropout = nn.Dropout(config.resid_pdrop)
+
+    do self.RegisterComponents()
+
+    override _.forward(x) =
+        let x = c_fc.forward(x)
+        let x = c_proj.forward(x)
+        let x = act.forward(x)
+        let x = dropout.forward(x)
+        x
+
 /// an unassuming Transformer block
 type Block(config) as self =
     inherit nn.Module<Tensor, Tensor>("Block")
@@ -73,20 +92,13 @@ type Block(config) as self =
     let ln_1 = nn.LayerNorm(config.n_embd)
     let attn = new CausalSelfAttention(config)
     let ln_2 = nn.LayerNorm(config.n_embd)
-    let mlp =
-        nn.ModuleDict<nn.Module<Tensor, Tensor>>(
-            struct ("c_fc", nn.Linear(config.n_embd, 4L * config.n_embd)),
-            struct ("c_proj", nn.Linear(4L * config.n_embd, config.n_embd)),
-            struct ("act", new NewGELU()),
-            struct ("dropout", nn.Dropout(config.resid_pdrop)))
-    let m = mlp
-    let mlpf = fun x -> m["dropout"].forward(m["c_proj"].forward(m["act"].forward(m["c_fc"].forward(x)))) // MLP forward
+    let mlp = new Mlp(config)
 
     do self.RegisterComponents()
 
     override _.forward(x) =
         let x = x + attn.forward(ln_1.forward(x))
-        let x = x + mlpf(ln_2.forward(x))
+        let x = x + mlp.forward(ln_2.forward(x))
         x
 
 /// This is a submodule of GPT in the original minGPT, but it works better as a
