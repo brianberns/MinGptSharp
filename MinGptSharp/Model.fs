@@ -89,6 +89,34 @@ type Block(config) as self =
         let x = x + mlpf(ln_2.forward(x))
         x
 
+/// This is a submodule of GPT in the original minGPT, but it works better as a
+/// top-level module in F#.
+type Transformer(config) as self =
+    inherit nn.Module<Tensor, Tensor>("Transformer")
+
+    let block_size = config.block_size
+
+    let wte = nn.Embedding(config.vocab_size, config.n_embd)
+    let wpe = nn.Embedding(config.block_size, config.n_embd)
+    let drop = nn.Dropout(config.embd_pdrop)
+    let h = nn.ModuleList([| for _ in range(config.n_layer) -> new Block(config) |])
+    let ln_f = nn.LayerNorm(config.n_embd)
+
+    do self.RegisterComponents()
+
+    override _.forward(idx) =
+        let device = idx.device
+        let [| b; t; |] = idx.size()
+        if t > block_size then
+            failwith $"Cannot forward sequence of length {t}, block size is only {block_size}"
+        let pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) // shape (1, t)
+
+        let tok_emb = wte.forward(idx) // token embeddings of shape (b, t, n_embd)
+        let pos_emb = wpe.forward(pos) // position embeddings of shape (1, t, n_embd)
+        let x = drop.forward(tok_emb + pos_emb)
+        let x = (x, h) ||> Seq.fold (fun x block -> block.forward(x))
+        ln_f.forward(x)
+
 /// GPT Language Model
 type GPT(config) as self =
     inherit nn.Module<Tensor, Tensor, Tensor * Tensor>("GPT")
@@ -96,7 +124,6 @@ type GPT(config) as self =
     do
         assert(config.vocab_size > 0)
         assert(config.block_size > 0)
-    let block_size = config.block_size
 
     let type_given = String.IsNullOrWhiteSpace(config.model_type) |> not
     let params_given = config.n_layer > 0 && config.n_head > 0 && config.n_embd > 0
@@ -122,13 +149,7 @@ type GPT(config) as self =
                 | "gpt-nano" ->    { config with n_layer= 3; n_head= 3; n_embd=  48 }
         else config
 
-    let transformer =
-        nn.ModuleDict<nn.Module>(
-            struct ("wte", nn.Embedding(config.vocab_size, config.n_embd)),
-            struct ("wpe", nn.Embedding(config.block_size, config.n_embd)),
-            struct ("drop", nn.Dropout(config.embd_pdrop)),
-            struct ("h", nn.ModuleList([| for _ in range(config.n_layer) -> new Block(config) |])),
-            struct ("ln_f", nn.LayerNorm(config.n_embd)))
+    let transformer = new Transformer(config)
     let lm_head = nn.Linear(config.n_embd, config.vocab_size, hasBias=false)
 
     let _init_weights(mdule : nn.Module) =
@@ -229,22 +250,9 @@ type GPT(config) as self =
         optimizer
 
     override _.forward(idx, targets) =
-        let device = idx.device
-        let [| b; t; |] = idx.size()
-        if t > block_size then
-            failwith $"Cannot forward sequence of length {t}, block size is only {block_size}"
-        let pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) // shape (1, t)
 
         // forward the GPT model itself
-        let transform (name : string) value =
-            (transformer[name] :?> nn.Module<Tensor, Tensor>).forward(value)
-        let tok_emb = transform "wte" idx // token embeddings of shape (b, t, n_embd)
-        let pos_emb = transform "wpe" pos // position embeddings of shape (1, t, n_embd)
-        let x = transform "drop" (tok_emb + pos_emb)
-        let x =
-            (x, transformer["h"] :?> Modules.ModuleList<Block>)
-                ||> Seq.fold (fun x block -> block.forward(x))
-        let x = transform "ln_f" x
+        let x = transformer.forward(idx)
         let logits = lm_head.forward(x)
 
         // if we are given some desired targets also calculate the loss
