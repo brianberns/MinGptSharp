@@ -79,11 +79,11 @@ type Mlp(config) as self =
     do self.RegisterComponents()
 
     override _.forward(x) =
-        let x = c_fc.forward(x)
-        let x = c_proj.forward(x)
-        let x = act.forward(x)
-        let x = dropout.forward(x)
         x
+            |> c_fc.forward
+            |> c_proj.forward
+            |> act.forward
+            |> dropout.forward
 
 /// an unassuming Transformer block
 type Block(config) as self =
@@ -97,8 +97,8 @@ type Block(config) as self =
     do self.RegisterComponents()
 
     override _.forward(x) =
-        let x = x + attn.forward(ln_1.forward(x))
-        let x = x + mlp.forward(ln_2.forward(x))
+        let x = x + (x |> ln_1.forward |> attn.forward)
+        let x = x + (x |> ln_2.forward |> mlp.forward)
         x
 
 /// This is a submodule of GPT in the original minGPT, but it works better as a
@@ -264,10 +264,12 @@ type GPT(config) as self =
     override _.forward(idx, targets) =
 
         // forward the GPT model itself
-        let x = transformer.forward(idx)
-        let logits = lm_head.forward(x)
+        let logits =
+            idx
+                |> transformer.forward
+                |> lm_head.forward
 
-        // if we are given some desired targets also calculate the loss
+        // calculate the loss
         let loss =
             nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index = -1)
 
