@@ -46,7 +46,7 @@ type CausalSelfAttention(config) as self=
         let [| B; T; C |] = x.size() // batch size, sequence length, embedding dimensionality (n_embd)
 
         // calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        let [| q; k; v |] = c_attn.forward(x).split(n_embd, dim=2)
+        let [| q; k; v |] = (x --> c_attn).split(n_embd, dim=2)
         let k = k.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
         let q = q.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
         let v = v.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
@@ -58,13 +58,12 @@ type CausalSelfAttention(config) as self=
             let mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
             att.masked_fill((mask = tensor 0), s Double.NegativeInfinity)
         let att = softmax(att, dim = -1)
-        let att = attn_dropout.forward(att)
+        let att = att --> attn_dropout
         let y = att @@ v // (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
         let y = y.transpose(1, 2).contiguous().view(B, T, C) // re-assemble all head outputs side by side
 
         // output projection
-        let y = resid_dropout.forward(c_proj.forward(y))
-        y
+        y --> c_proj --> resid_dropout
 
 /// This is a submodule of Block in the original minGPT, but it works better as a
 /// top-level module in F#.
@@ -93,8 +92,8 @@ type Block(config) as self =
     do self.RegisterComponents()
 
     override _.forward(x) =
-        let x = x + (x |> ln_1.forward |> attn.forward)
-        let x = x + (x |> ln_2.forward |> mlp.forward)
+        let x = x + (x --> ln_1 --> attn)
+        let x = x + (x --> ln_2 --> mlp)
         x
 
 /// This is a submodule of GPT in the original minGPT, but it works better as a
@@ -119,11 +118,11 @@ type Transformer(config) as self =
             failwith $"Cannot forward sequence of length {t}, block size is only {block_size}"
         let pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) // shape (1, t)
 
-        let tok_emb = wte.forward(idx) // token embeddings of shape (b, t, n_embd)
-        let pos_emb = wpe.forward(pos) // position embeddings of shape (1, t, n_embd)
-        let x = drop.forward(tok_emb + pos_emb)
-        let x = (x, h) ||> Seq.fold (fun x block -> block.forward(x))
-        ln_f.forward(x)
+        let tok_emb = idx --> wte // token embeddings of shape (b, t, n_embd)
+        let pos_emb = pos --> wpe // position embeddings of shape (1, t, n_embd)
+        let x = (tok_emb + pos_emb) --> drop
+        let x = Seq.fold (-->) x h
+        x --> ln_f
 
 /// GPT Language Model
 type GPT(config) as self =
