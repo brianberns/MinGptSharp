@@ -51,8 +51,7 @@ type AdditionDataset(config, split (*train/test*)) =
     let num_test = min ((num / 5)) 500 // 20% of the whole dataset, or only up to 500
     let ixes =
         if split = "test" then perm[Slice(stop=num_test)]
-        else perm[Slice(num_test)]
-        
+        else perm[Slice(num_test)]        
 
     static member get_default_config() =
         {
@@ -79,7 +78,7 @@ type AdditionDataset(config, split (*train/test*)) =
         // calculate the "label" of the addition problem a + b
         let c = a + b
         // encode the digits of a, b, c into strings
-        let fmt (n : int) (x : int) = String.Format(String.Format("%0d", n), x)
+        let fmt (n : int) (x : int) = x.ToString(String.Format("d{0}", n))
         let astr = fmt ndigit a
         let bstr = fmt ndigit b
         let cstr =
