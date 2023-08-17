@@ -85,7 +85,7 @@ type AdditionDataset(config, split (*train/test*)) =
             fmt (ndigit+1) c
                 |> Seq.rev |> String.Concat // reverse c to make addition easier
         let render = astr + bstr + cstr
-        let dix = [| for c in render -> int64 c |] // convert each character to its token index
+        let dix = [| for c in render -> int64 (c - '0') |] // convert each character to its token index
         // x will be input to GPT and y will be the associated expected outputs
         let x = torch.tensor(dix[.. dix.Length-2], dtype=torch.long)
         let y = torch.tensor(dix[1 ..], dtype=torch.long) // predict the next token in the sequence
