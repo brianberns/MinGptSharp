@@ -72,18 +72,18 @@ type AdditionDataset(config, split (*train/test*)) =
 
     override _.GetTensor(idx) =
         // given a problem index idx, first recover the associated a + b
-        let idx = ixes[idx].item()
+        let idx = ixes[idx].item<int64>() |> int
         let nd = powi 10 ndigit
-        let a = idx // nd
+        let a = idx / nd
         let b = idx %  nd
         // calculate the "label" of the addition problem a + b
         let c = a + b
         // encode the digits of a, b, c into strings
-        let fmt n = Printf.StringFormat<int -> string>(sprintf "%0d" n)
-        let astr = sprintf (fmt ndigit) a
-        let bstr = sprintf (fmt ndigit) b
+        let fmt (n : int) (x : int) = String.Format(String.Format("%0d", n), x)
+        let astr = fmt ndigit a
+        let bstr = fmt ndigit b
         let cstr =
-            sprintf (fmt (ndigit+1)) c
+            fmt (ndigit+1) c
                 |> Seq.rev |> String.Concat // reverse c to make addition easier
         let render = astr + bstr + cstr
         let dix = [| for c in render -> int64 c |] // convert each character to its token index
@@ -106,7 +106,6 @@ type AdderConfig =
 
         // model
         model : ModelConfig
-        model_type : string
 
         // trainer
         trainer : TrainerConfig
@@ -117,12 +116,8 @@ type AdderConfig =
         {
             seed = 3407
             work_dir = "./out/adder"
-
             data = AdditionDataset.get_default_config()
-
-            model = GPT.get_default_config()
-            model_type = "gpt-nano"
-
+            model = { GPT.get_default_config() with model_type = "gpt-nano" }
             trainer = Trainer.get_default_config()
             learning_rate = 5e-4 // the model we"re using is so small that we can go a bit faster
         }
