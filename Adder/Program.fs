@@ -157,7 +157,7 @@ module Program =
             let x = dict["x"].``to``(info.device)
             let y = dict["y"].``to``(info.device)
             // isolate the first two digits of the input sequence alone
-            let d1d2 = x[Colon, Slice(ndigit*2)]
+            let d1d2 = x[Colon, Slice(stop=ndigit*2)]
             // let the model sample the rest of the sequence
             let d1d2d3 = model.generate(d1d2, ndigit+1, do_sample=false) // using greedy argmax, not sampling
             // isolate the last digit of the sampled sequence

@@ -288,7 +288,7 @@ type GPT(config) as self =
                         // forward the model to get the logits for the index in the sequence
                         let logits = self.forward(idx_cond)
                         // pluck the logits at the final step and scale by desired temperature
-                        let logits = logits[Colon, Slice(-1), Colon] / (temperature.ToScalar())
+                        let logits = logits[Colon, -1, Colon] / (temperature.ToScalar())
                         // apply softmax to convert logits to (normalized) probabilities
                         let probs = softmax(logits, dim = -1)
                         // either sample from the distribution or take the most likely element
