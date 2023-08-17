@@ -14,7 +14,7 @@ open type utils.data
 
 #nowarn "25"   // allow pattern matching on listss
 
-type TrainerInfo =
+type TrainerProgress =
     {
         iter_num : int
         iter_dt : TimeSpan
@@ -25,7 +25,7 @@ type TrainerInfo =
 type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
 
     let optimizer = None
-    let callbacks = Dictionary<string, ResizeArray<TrainerInfo -> unit>>()
+    let callbacks = Dictionary<string, ResizeArray<TrainerProgress -> unit>>()
 
     // determine the device we'll train on
     let device =

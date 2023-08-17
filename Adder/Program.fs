@@ -145,18 +145,17 @@ module Program =
     let trainer = Trainer(config.trainer, model, train_dataset)
 
     // helper function for the evaluation of a model
-    let eval_split (info : TrainerInfo) split =
+    let eval_split (progress : TrainerProgress) split =
         let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
         let ndigit = config.data.ndigit
         let results = ResizeArray()
         let mutable mistakes_printed_already = 0
         let factors =
             torch.tensor(array2D [[for i in ndigit .. -1 .. 0 -> powi 10 i]])
-                .``to``(info.device)
+                .``to``(progress.device)
         let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
         for dict in loader do
-            let x = dict["x"].``to``(info.device)
-            let y = dict["y"].``to``(info.device)
+            let x = dict["x"].``to``(progress.device)
             // isolate the first two digits of the input sequence alone
             let d1d2 = x[Colon, Slice(stop=ndigit*2)]
             // let the model sample the rest of the sequence
@@ -175,15 +174,15 @@ module Program =
                 results.Add(int(correct[i]))
                 if (not (correct[i].item<bool>())) && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
                     mistakes_printed_already <- mistakes_printed_already + 1
-                    let get (t : Tensor) = t[i].item<int>()
+                    let get (t : Tensor) = t[i].item<int64>()
                     printfn "GPT claims that %d + %d = %d but gt is %d" (get d1i) (get d2i) (get d3i_pred) (get d3i_gt)
         let rt = torch.tensor(results, dtype=torch.float)
-        printfn "%s final score: %d/%d = %.2f%% correct"
-            split (rt.sum().item<int>()) results.Count (100.0 * rt.mean().item<float>())
+        printfn "%s final score: %f/%d = %.2f%% correct"
+            split (rt.sum().item<float32>()) results.Count (100.0f * rt.mean().item<float32>())
         rt.sum()
 
     // iteration callback
-    let mutable top_score = 0.0
+    let mutable top_score = 0.0f
     let batch_end_callback info =
 
         if info.iter_num % 10 = 0 then
@@ -196,7 +195,7 @@ module Program =
                 using (torch.no_grad()) (fun _ ->
                     eval_split info "train",
                     eval_split info "test")
-            let score = (train_score + test_score).item<float>()
+            let score = (train_score + test_score).item<float32>()
             // save the model if this is the best score we've seen so far
             if score > top_score then
                 top_score <- score

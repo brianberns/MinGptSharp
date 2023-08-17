@@ -102,9 +102,9 @@ module Program =
         }
     let trainer = Trainer(train_config, model, train_dataset)
 
-    let batch_end_callback info =
-        if info.iter_num % 100 = 0 then
-            printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
+    let batch_end_callback progress =
+        if progress.iter_num % 100 = 0 then
+            printfn $"iter_dt {progress.iter_dt}; iter {progress.iter_num}: train loss {progress.loss}"
     trainer.set_callback "on_batch_end" batch_end_callback
 
     trainer.run ()
