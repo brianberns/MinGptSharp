@@ -4,6 +4,8 @@
 Trains a GPT to add n-digit numbers.
 *)
 
+open System
+
 open TorchSharp
 open type torch
 open type utils.data
@@ -36,7 +38,7 @@ type AdditionDatasetConfig =
 /// At test time, we will feed in an addition problem by giving the first 2n digits,
 /// and hoping that the GPT model completes the sequence with the next (n+1) digits
 /// correctly.
-type AdditionDataset(config, split (*train/test*)) as self =
+type AdditionDataset(config, split (*train/test*)) =
     inherit Dataset()
 
     let pow x y =
@@ -53,9 +55,7 @@ type AdditionDataset(config, split (*train/test*)) as self =
     let ixes =
         if split = "test" then perm[Slice(stop=num_test)]
         else perm[Slice(num_test)]
-
-    let rev (str : string) =
-        str |> Seq.rev |> System.String.Concat
+        
 
     static member get_default_config() =
         {
@@ -85,7 +85,9 @@ type AdditionDataset(config, split (*train/test*)) as self =
         let fmt n = Printf.StringFormat<int -> string>(sprintf "%0d" n)
         let astr = sprintf (fmt ndigit) a
         let bstr = sprintf (fmt ndigit) b
-        let cstr = sprintf (fmt (ndigit+1)) c |> rev // reverse c to make addition easier
+        let cstr =
+            sprintf (fmt (ndigit+1)) c
+                |> Seq.rev |> String.Concat // reverse c to make addition easier
         let render = astr + bstr + cstr
         let dix = [| for c in render -> int64 c |] // convert each character to its token index
         // x will be input to GPT and y will be the associated expected outputs
