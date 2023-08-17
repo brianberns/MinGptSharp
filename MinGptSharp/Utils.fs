@@ -23,22 +23,6 @@ module Utils =
     // replacement for @ operator
     let (@@) a b = torch.matmul(a, b)
 
-    // https://github.com/dotnet/TorchSharp/discussions/982#discussioncomment-5759353
-    type torch.Tensor with
-        member t.GetSlice(startIdx: int64 option, endIdx: int64 option) =
-            match startIdx, endIdx with
-                | Some s, Some e -> t[torch.TensorIndex.Slice(s, e)]
-                | Some s, None -> t[torch.TensorIndex.Slice(s)]
-                | None, Some e -> t[torch.TensorIndex.Slice(stop=e)]
-                | None, None -> t[torch.TensorIndex.Slice()]
-
-        member t.SetSlice(startIdx: int64 option, endIdx: int64 option, v: torch.Tensor) =
-            match startIdx, endIdx with
-                | Some s, Some e -> t[torch.TensorIndex.Slice(s, e)] <- v
-                | Some s, None -> t[torch.TensorIndex.Slice(s)] <- v
-                | None, Some e -> t[torch.TensorIndex.Slice(stop=e)] <- v
-                | None, None -> t[torch.TensorIndex.Slice()] <- v
-
     let set_seed seed =
         torch.manual_seed(seed) |> ignore
         torch.cuda.manual_seed_all(seed)

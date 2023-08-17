@@ -3,6 +3,7 @@
 open TorchSharp
 open type torch
 open type utils.data
+open type TensorIndex
 open FSharp.Core.Operators   // reclaim "int64" and other F# operators
 
 /// Dataset for the Sort problem. E.g. for problem length 6:
@@ -53,10 +54,10 @@ type SortDataset(split, ?length, ?num_digits) =
         let cat = torch.cat(ResizeArray [inp; sol], dim=0)
 
         // the inputs to the transformer will be the offset sequence
-        let x = cat[.. cat.NumberOfElements - 1L].clone()
-        let y = cat[1 ..].clone()
+        let x = cat[Slice(stop = -1)].clone()
+        let y = cat[Slice(1)].clone()
         // we only want to predict at output locations, mask out the loss at the input locations
-        y[.. int64 length - 1L] <- -1
+        y[Slice(stop=length-1)] <- (-1).ToTensor()
         dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
 
     let tensorDicts =
