@@ -151,7 +151,7 @@ module Program =
         let results = ResizeArray()
         let mutable mistakes_printed_already = 0
         let factors =
-            torch.tensor([| for i in ndigit .. -1 .. 0 -> powi 10 i |]).``to``(info.device)
+            torch.tensor(array2d [| for i in ndigit .. -1 .. 0 -> powi 10 i |]).``to``(info.device)
         let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
         for dict in loader do
             let x = dict["x"].``to``(info.device)
