@@ -151,17 +151,17 @@ module Program =
     let trainer = Trainer(config.trainer, model, train_dataset)
 
     // helper function for the evaluation of a model
-    let eval_split trainer split =
+    let eval_split (info : TrainerInfo) split =
         let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
         let ndigit = config.data.ndigit
         let results = ResizeArray()
         let mutable mistakes_printed_already = 0
         let factors =
-            torch.tensor([| for i in ndigit .. -1 .. 0 -> powi 10 i |]).``to``(trainer.device)
+            torch.tensor([| for i in ndigit .. -1 .. 0 -> powi 10 i |]).``to``(info.device)
         let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
         for dict in loader do
-            let x = dict["x"].``to``(trainer.device)
-            let y = dict["y"].``to``(trainer.device)
+            let x = dict["x"].``to``(info.device)
+            let y = dict["y"].``to``(info.device)
             // isolate the first two digits of the input sequence alone
             let d1d2 = x[Colon, Slice(ndigit*2)]
             // let the model sample the rest of the sequence
@@ -187,34 +187,30 @@ module Program =
             split (rt.sum().item<int>()) results.Count (100.0 * rt.mean().item<float>())
         rt.sum()
 
-    (*
     // iteration callback
-    top_score = 0
-    def batch_end_callback(trainer):
-        global top_score
+    let mutable top_score = 0.0
+    let batch_end_callback info =
 
-        if trainer.iter_num % 10 == 0:
-            print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {trainer.loss.item():.5f}")
+        if info.iter_num % 10 = 0 then
+            printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
 
-        if trainer.iter_num % 500 == 0:
+        if info.iter_num % 500 = 0 then
             // evaluate both the train and test score
-            train_max_batches = {1: None, 2: None, 3: 5}[config.data.ndigit] // if ndigit=2 we can afford the whole train set, ow no
             model.eval()
-            with torch.no_grad():
-                train_score = eval_split(trainer, "train", max_batches=train_max_batches)
-                test_score  = eval_split(trainer, "test",  max_batches=None)
-            score = train_score + test_score
+            let train_score, test_score =
+                using (torch.no_grad()) (fun _ ->
+                    eval_split info "train",
+                    eval_split info "test")
+            let score = (train_score + test_score).item<float>()
             // save the model if this is the best score we've seen so far
-            if score > top_score:
-                top_score = score
-                print(f"saving model with new top score of {score}")
-                ckpt_path = os.path.join(config.system.work_dir, "model.pt")
-                torch.save(model.state_dict(), ckpt_path)
+            if score > top_score then
+                top_score <- score
+                printfn $"saving model with new top score of {score}"
+                model.save("model.pt") |> ignore
             // revert model to training mode
             model.train()
 
-    trainer.set_callback("on_batch_end", batch_end_callback)
+    trainer.set_callback "on_batch_end" batch_end_callback
 
     // run the optimization
     trainer.run()
-*)

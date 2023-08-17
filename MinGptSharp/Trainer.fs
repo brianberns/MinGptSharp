@@ -5,6 +5,7 @@ Simple training loop; Boilerplate that could apply to any arbitrary neural netwo
 so nothing in this file really has anything to do with GPT specifically.
 *)
 
+open System
 open System.Collections.Generic
 
 open TorchSharp
@@ -13,10 +14,18 @@ open type utils.data
 
 #nowarn "25"   // allow pattern matching on listss
 
-type Trainer(config, model : GPT, train_dataset : Dataset) as self =
+type TrainerInfo =
+    {
+        iter_num : int
+        iter_dt : TimeSpan
+        loss : float32
+        device : string
+    }
+
+type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
 
     let optimizer = None
-    let callbacks = Dictionary<string, ResizeArray<Trainer -> unit>>()
+    let callbacks = Dictionary<string, ResizeArray<TrainerInfo -> unit>>()
 
     // determine the device we'll train on
     let device =
@@ -27,19 +36,13 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
     let model = model.``to``(device)
     do printfn $"running on device {device}"
 
-    let add_callback (onevent: string) callback =
-        callbacks[onevent].Add(callback)
-
-    let set_callback (onevent: string) callback =
-        callbacks[onevent] = ResizeArray [callback]
-
-    let trigger_callbacks (onevent: string) =
+    let trigger_callbacks (onevent: string) iter_num =
         let list =
             match callbacks.TryGetValue(onevent) with
                 | true, list -> list :> seq<_>
                 | false, _ -> Seq.empty
         for callback in list do
-            callback(self)
+            callback iter_num
 
     static member get_default_config() =
         {
@@ -55,6 +58,12 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
             weight_decay = 0.1 // only applied on matmul weights
             grad_norm_clip = 1.0
         }
+
+    member _.set_callback onevent callback =
+        callbacks[onevent] <- ResizeArray [callback]
+
+    member _.add_callback(onevent) callback =
+        callbacks[onevent].Add(callback)
 
     member _.run() =
 
@@ -94,12 +103,16 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
                 optimizer.step() |> ignore
 
-                trigger_callbacks("on_batch_end")
-                let tnow = System.DateTime.Now
+                let tnow = DateTime.Now
                 let iter_dt = tnow - iter_time
+                trigger_callbacks "on_batch_end"
+                    {
+                        iter_num = iter_num
+                        iter_dt = iter_dt
+                        loss = loss.item<float32>()
+                        device = device
+                    }
                 let iter_time = tnow
-                if iter_num % 100 = 0 then
-                    printfn $"iter_dt {iter_dt}; iter {iter_num}: train loss {loss.item<float32>()}"
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
@@ -108,4 +121,4 @@ type Trainer(config, model : GPT, train_dataset : Dataset) as self =
             else
                 train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
-        train_loader.GetEnumerator() |> loop 0 System.DateTime.Now
+        train_loader.GetEnumerator() |> loop 0 DateTime.Now

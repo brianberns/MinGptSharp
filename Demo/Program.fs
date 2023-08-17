@@ -101,4 +101,10 @@ module Program =
                 num_workers = 0
         }
     let trainer = Trainer(train_config, model, train_dataset)
+
+    let batch_end_callback info =
+        if info.iter_num % 100 = 0 then
+            printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
+    trainer.set_callback "on_batch_end" batch_end_callback
+
     trainer.run ()
