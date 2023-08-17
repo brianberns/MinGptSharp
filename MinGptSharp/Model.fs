@@ -256,14 +256,49 @@ type GPT(config) as self =
         let optimizer = torch.optim.AdamW(optim_groups, lr=train_config.learning_rate, beta1=beta1, beta2=beta2)
         optimizer
 
+    member _.forward(idx) =
+        idx --> transformer --> lm_head
+
     override _.forward(idx, targets) =
 
         // forward the GPT model itself
-        let logits =
-            idx --> transformer --> lm_head
+        let logits = self.forward(idx)
 
         // calculate the loss
         let loss =
             nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index = -1)
 
         logits, loss
+
+    /// Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
+    /// the sequence max_new_tokens times, feeding the predictions back into the model each time.
+    /// Most likely you'll want to make sure to be in model.eval() mode of operation for this.
+    /// @torch.no_grad()
+    member _.generate(idx : Tensor, max_new_tokens, ?temperature, ?do_sample) =
+        let temperature = defaultArg temperature 1.0
+        let do_sample = defaultArg do_sample false
+        using (torch.no_grad()) (fun _ ->
+            let idx =
+                (idx, range(max_new_tokens))
+                    ||> Seq.fold (fun idx _ ->
+                        // if the sequence context is growing too long we must crop it at block_size
+                        let idx_cond =
+                            if idx.size(1) <= config.block_size then idx
+                            else idx[Colon, Slice(-config.block_size)]
+                        // forward the model to get the logits for the index in the sequence
+                        let logits = self.forward(idx_cond)
+                        // pluck the logits at the final step and scale by desired temperature
+                        let logits = logits[Colon, Slice(-1), Colon] / (temperature.ToScalar())
+                        // apply softmax to convert logits to (normalized) probabilities
+                        let probs = softmax(logits, dim = -1)
+                        // either sample from the distribution or take the most likely element
+                        let idx_next =
+                            if do_sample then
+                                torch.multinomial(probs, num_samples=1)
+                            else
+                                let struct (_, idx_next) = torch.topk(probs, k=1, dim = -1)
+                                idx_next
+                        // append sampled index to the running sequence and continue
+                        torch.cat(ResizeArray [idx; idx_next], dim=1))
+
+            idx)

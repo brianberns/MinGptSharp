@@ -6,8 +6,11 @@ module Utils =
     /// Pythonic range sequence.
     let range n = seq { 0 .. n - 1 }
 
+    /// Pythonic range sequence.
+    let rangel n = seq { 0L .. n - 1L }
+
     /// Integer power.
-    let ipow x y =
+    let powi x y =
         Seq.replicate y x |> Seq.fold (*) 1
 
     /// Memoizes the given function.
