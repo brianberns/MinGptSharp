@@ -65,7 +65,7 @@ type AdditionDataset(config, split (*train/test*)) =
         // a,b,a+b, and +1 due to potential carry overflow,
         // but then also -1 because very last digit doesn't ever plug back
         // as there is no explicit <EOS> token to predict, it is implied
-        3 * config.ndigit + 1 - 1
+        3 * ndigit + 1 - 1
 
     override _.Count with get() = ixes.NumberOfElements
 
