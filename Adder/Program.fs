@@ -41,13 +41,10 @@ type AdditionDatasetConfig =
 type AdditionDataset(config, split (*train/test*)) =
     inherit Dataset()
 
-    let pow x y =
-        Seq.replicate y x |> Seq.reduce (*)
-
     // split up all addition problems into either training data or test data
     let ndigit = config.ndigit
     do assert(ndigit <= 3) // "the lines below would be very memory inefficient, in future maybe refactor to support"
-    let num = pow (pow 10 ndigit) 2 // total number of possible addition problems with ndigit numbers
+    let num = ipow (ipow 10 ndigit) 2 // total number of possible addition problems with ndigit numbers
     let rng = new torch.Generator()
     do rng.manual_seed(1337) |> ignore
     let perm = torch.randperm(num, generator=rng)
@@ -76,7 +73,7 @@ type AdditionDataset(config, split (*train/test*)) =
     override _.GetTensor(idx) =
         // given a problem index idx, first recover the associated a + b
         let idx = ixes[idx].item()
-        let nd = pow 10 ndigit
+        let nd = ipow 10 ndigit
         let a = idx // nd
         let b = idx %  nd
         // calculate the "label" of the addition problem a + b
@@ -130,64 +127,67 @@ type AdderConfig =
             learning_rate = 5e-4 // the model we"re using is so small that we can go a bit faster
         }
 
-(*
-
-if __name__ == "__main__":
+module Program =
 
     // get default config and overrides from the command line, if any
-    config = get_config()
-    config.merge_from_args(sys.argv[1:])
-    print(config)
-    setup_logging(config)
-    set_seed(config.system.seed)
+    let config = AdderConfig.get_config ()
+    set_seed(config.seed)
 
     // construct train and test datasets
-    train_dataset = AdditionDataset(config.data, split="train")
-    test_dataset  = AdditionDataset(config.data, split="test")
+    let train_dataset = new AdditionDataset(config.data, split="train")
+    let test_dataset  = new AdditionDataset(config.data, split="test")
 
     // construct the model
-    config.model.vocab_size = train_dataset.get_vocab_size()
-    config.model.block_size = train_dataset.get_block_size()
-    model = GPT(config.model)
+    let config =
+        { config with
+            model =
+                { config.model with
+                    vocab_size = train_dataset.get_vocab_size()
+                    block_size = train_dataset.get_block_size()
+                } }
+    let model = new GPT(config.model)
 
     // construct the trainer object
-    trainer = Trainer(config.trainer, model, train_dataset)
+    let trainer = Trainer(config.trainer, model, train_dataset)
 
     // helper function for the evaluation of a model
-    def eval_split(trainer, split, max_batches=None):
-        dataset = {"train":train_dataset, "test":test_dataset}[split]
-        ndigit = config.data.ndigit
-        results = []
-        mistakes_printed_already = 0
-        factors = torch.tensor([[10**i for i in range(ndigit+1)][::-1]]).to(trainer.device)
-        loader = DataLoader(dataset, batch_size=100, num_workers=0, drop_last=False)
-        for b, (x, y) in enumerate(loader):
-            x = x.to(trainer.device)
+    let eval_split trainer split max_batches =
+        let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
+        let ndigit = config.data.ndigit
+        let results = []
+        let mistakes_printed_already = 0
+        let factors =
+            torch.tensor([| for i in ndigit .. -1 .. 0 -> ipow 10 i |]).``to``(trainer.device)
+        let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
+        for (b, dict) in Seq.indexed loader do
+            let x = dict["x"].``to``(trainer.device)
+            let y = dict["y"].``to``(trainer.device)
             // isolate the first two digits of the input sequence alone
-            d1d2 = x[:, :ndigit*2]
+            let d1d2 = x[Colon, Slice(ndigit*2)]
             // let the model sample the rest of the sequence
-            d1d2d3 = model.generate(d1d2, ndigit+1, do_sample=False) // using greedy argmax, not sampling
+            let d1d2d3 = model.generate(d1d2, ndigit+1, do_sample=false) // using greedy argmax, not sampling
             // isolate the last digit of the sampled sequence
-            d3 = d1d2d3[:, -(ndigit+1):]
-            d3 = d3.flip(1) // reverse the digits to their "normal" order
+            let d3 = d1d2d3[Colon, Slice(-(ndigit+1))]
+            let d3 = d3.flip(1) // reverse the digits to their "normal" order
             // decode the integers from individual digits
-            d1i = (d1d2[:,:ndigit] * factors[:,1:]).sum(1)
-            d2i = (d1d2[:,ndigit:ndigit*2] * factors[:,1:]).sum(1)
-            d3i_pred = (d3 * factors).sum(1)
-            d3i_gt = d1i + d2i // manually calculate the ground truth
+            let d1i = (d1d2[Colon, Slice(stop=ndigit)] * factors[Colon, Slice(1)]).sum(1)
+            let d2i = (d1d2[Colon, Slice(ndigit, ndigit*2)] * factors[Colon, Slice(1)]).sum(1)
+            let d3i_pred = (d3 * factors).sum(1)
+            let d3i_gt = d1i + d2i // manually calculate the ground truth
             // evaluate the correctness of the results in this batch
-            correct = (d3i_pred == d3i_gt).cpu() // Software 1.0 vs. Software 2.0 fight RIGHT on this line haha
-            for i in range(x.size(0)):
+            let correct = (d3i_pred = d3i_gt).cpu() // Software 1.0 vs. Software 2.0 fight RIGHT on this line haha
+            for i in range(x.size(0)) do
                 results.append(int(correct[i]))
-                if not correct[i] and mistakes_printed_already < 5: // only print up to 5 mistakes to get a sense
+                if not correct[i] && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
                     mistakes_printed_already += 1
                     print("GPT claims that %d + %d = %d but gt is %d" % (d1i[i], d2i[i], d3i_pred[i], d3i_gt[i]))
-            if max_batches is not None and b+1 >= max_batches:
+            if max_batches is not None && b+1 >= max_batches then
                 break
-        rt = torch.tensor(results, dtype=torch.float)
+        let rt = torch.tensor(results, dtype=torch.float)
         print("%s final score: %d/%d = %.2f%% correct" % (split, rt.sum(), len(results), 100*rt.mean()))
-        return rt.sum()
+        rt.sum()
 
+    (*
     // iteration callback
     top_score = 0
     def batch_end_callback(trainer):

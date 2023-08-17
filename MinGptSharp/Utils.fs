@@ -6,6 +6,10 @@ module Utils =
     /// Pythonic range sequence.
     let range n = seq { 0 .. n - 1 }
 
+    /// Integer power.
+    let ipow x y =
+        Seq.replicate y x |> Seq.fold (*) 1
+
     /// Memoizes the given function.
     /// http://www.fssnip.net/mW/title/memoize-
     let memoize f =
