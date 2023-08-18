@@ -1,7 +1,5 @@
 ﻿namespace MinGptSharp
 
-open TorchSharp
-
 [<AutoOpen>]
 module Utils =
 

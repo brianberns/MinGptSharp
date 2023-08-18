@@ -29,7 +29,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
     // determine the device we'll train on
     let device =
         if config.device = "auto" then
-            "cpu"
+            if torch.cuda.is_available() then "cuda" else "cpu"
         else
             config.device
     let model = model.``to``(device)
@@ -120,5 +120,4 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
             else
                 train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
-        torch.rand(2).str() |> printfn "%s"
         train_loader.GetEnumerator() |> loop 0 DateTime.Now
