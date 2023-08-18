@@ -89,9 +89,7 @@ type AdditionDataset(config, split (*train/test*)) =
         // x will be input to GPT and y will be the associated expected outputs
         let x = torch.tensor(dix[.. dix.Length-2], dtype=torch.long)
         let y = torch.tensor(dix[1 ..], dtype=torch.long) // predict the next token in the sequence
-        let stop = ndigit*2-1
-        let slice = Slice(stop=stop)
-        y[slice] <- (-1).ToTensor() // we will only train in the output locations. -1 will mask loss to zero
+        y[Slice(stop=ndigit*2-1)] <- tensor -1 // we will only train in the output locations. -1 will mask loss to zero
         dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
 
 type AdderConfig =

@@ -57,7 +57,7 @@ type SortDataset(split, ?length, ?num_digits) =
         let x = cat[Slice(stop = -1)].clone()
         let y = cat[Slice(1)].clone()
         // we only want to predict at output locations, mask out the loss at the input locations
-        y[Slice(stop=length-1)] <- (-1).ToTensor()
+        y[Slice(stop=length-1)] <- tensor -1
         dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
 
     let tensorDicts =
