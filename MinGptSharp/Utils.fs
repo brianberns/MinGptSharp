@@ -50,21 +50,22 @@ type MinDataset = torch.utils.data.Dataset<Tensor * Tensor>
 type MinDataLoader(dataset : MinDataset, batch_size, ?shuffle, ?num_worker, ?drop_last) =
     inherit utils.data.DataLoader<Tensor * Tensor, Tensor * Tensor>(dataset, batch_size, MinDataLoader.Collate, ?shuffle=shuffle, ?num_worker=num_worker, ?drop_last=drop_last)
 
+    static let collate f items (device : Device) =
+        let tensors =
+            items
+                |> Seq.map (fun item ->
+                    let (tensor : torch.Tensor) = f item
+                    tensor.unsqueeze(0))
+                |> Seq.toArray
+        let tensor = torch.cat(tensors, 0)
+        if tensor.device_type <> device.``type`` || tensor.device_index <> device.index then
+            tensor.``to``(device)
+        else tensor
+
     static member private Collate =
-        let map f pairs (device : Device) =
-            let ts =
-                pairs
-                    |> Seq.map (fun pair ->
-                        let (t : torch.Tensor) = f pair
-                        t.unsqueeze(0))
-                    |> Seq.toArray
-            let mutable t = torch.cat(ts, 0)
-            if t.device_type <> device.``type`` || t.device_index <> device.index then
-                t <- t.``to``(device)
-            t
-        Func<_, _, _>(fun (pairs : seq<Tensor * Tensor>) (device : Device) ->
-            map fst pairs device,
-            map snd pairs device)
+        Func<_, _, _>(fun pairs device ->
+            collate fst pairs device,
+            collate snd pairs device)
 
 type ModelConfig =
     {
