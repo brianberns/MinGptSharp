@@ -114,6 +114,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                         device = device
                     }
                 let iter_time = tnow
+                GC.Collect()   // https://github.com/dotnet/TorchSharp/blob/main/docfx/articles/memory.md
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
