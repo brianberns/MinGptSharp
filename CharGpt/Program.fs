@@ -22,8 +22,8 @@ type CharDataset(config, data : string) =
     inherit Dataset()
 
     let chars = set data
-    let data_size, vocab_size = data.Length, chars.Count
-    do printfn "data has %d characters, %d unique." data_size vocab_size
+    let data_size, vocab_size_ = data.Length, chars.Count
+    do printfn "data has %d characters, %d unique." data_size vocab_size_
 
     let stoi = Map [ for i, ch in Seq.indexed chars -> ch, i ]
     let itos = Map [ for i, ch in Seq.indexed chars -> i, ch ]
@@ -37,7 +37,7 @@ type CharDataset(config, data : string) =
     member _.Stoi(ch) = stoi[ch]
 
     member _.get_vocab_size() =
-        vocab_size
+        vocab_size_
 
     member _.get_block_size() =
         config.block_size
@@ -116,11 +116,11 @@ module Program =
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
-                let context = "O God, O God!"
+                let context = "God"
                 let x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
                 let x = x[None, Ellipsis].``to``(trainer.Device)
                 let y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]
-                let completion = String ([| for i in y -> train_dataset.Itos[int i] |])
+                let completion = String ([| for i in y.data<int64>() -> train_dataset.Itos(int i) |])
                 printfn "%s" completion)
             model.save("model.pt") |> ignore
             // revert model to training mode

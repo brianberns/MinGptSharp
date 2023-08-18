@@ -273,7 +273,7 @@ type GPT(config) as self =
     /// Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
     /// the sequence max_new_tokens times, feeding the predictions back into the model each time.
     /// Most likely you'll want to make sure to be in model.eval() mode of operation for this.
-    member _.generate(idx : Tensor, max_new_tokens, ?temperature, ?do_sample) =
+    member _.generate(idx : Tensor, max_new_tokens, ?temperature, ?do_sample, ?top_k) =
         let temperature = defaultArg temperature 1.0
         let do_sample = defaultArg do_sample false
         using (torch.no_grad()) (fun _ ->
@@ -287,6 +287,11 @@ type GPT(config) as self =
                     let logits = self.forward(idx_cond)
                     // pluck the logits at the final step and scale by desired temperature
                     let logits = logits[Colon, Single(-1), Colon] / (temperature.ToScalar())
+                    // optionally crop the logits to only the top k options
+                    Option.iter (fun top_k ->
+                        let struct (v, _) = torch.topk(logits, top_k)
+                        logits[torch.lt(logits, v[Colon, Single(-1)])] <- Double.NegativeInfinity)
+                        top_k
                     // apply softmax to convert logits to (normalized) probabilities
                     let probs = softmax(logits, dim = -1)
                     // either sample from the distribution or take the most likely element
