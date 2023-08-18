@@ -58,6 +58,8 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
             grad_norm_clip = 1.0
         }
 
+    member _.Device = device
+
     member _.set_callback onevent callback =
         callbacks[onevent] <- ResizeArray [callback]
 

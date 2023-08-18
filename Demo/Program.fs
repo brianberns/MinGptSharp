@@ -63,6 +63,8 @@ type SortDataset(split, ?length, ?num_digits) =
     let tensorDicts =
         Array.init nTensorDicts (fun _ -> makeTensorDict ())
 
+    member _.Length = length
+
     override _.Count with get() = nTensorDicts
 
     member _.get_vocab_size() = num_digits
@@ -108,3 +110,46 @@ module Program =
     trainer.set_callback "on_batch_end" batch_end_callback
 
     trainer.run ()
+
+    let eval_split split max_batches =
+        let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
+        let n = train_dataset.Length
+        let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
+        let results, _ =
+            let dicts =
+                max_batches
+                    |> Option.map (fun max -> Seq.truncate max loader)
+                    |> Option.defaultValue loader
+            (([], 0), dicts)
+                ||> Seq.fold (fun (results, mistakes_printed_already) dict ->
+                    let x = dict["x"].``to``(trainer.Device)
+                    let y = dict["y"].``to``(trainer.Device)
+                    // isolate the input pattern alone
+                    let inp = x[Colon, Slice(stop=n)]
+                    let sol = y[Colon, Slice(-n)]
+                    // let the model sample the rest of the sequence
+                    let cat = model.generate(inp, n, do_sample=false) // using greedy argmax, not sampling
+                    let sol_candidate = cat[Colon, Slice(n)] // isolate the filled in sequence
+                    // compare the predicted sequence to the true sequence
+                    let correct = (torch.eq(sol, sol_candidate)).all(1).cpu() // Software 1.0 vs. Software 2.0 fight RIGHT on this line haha
+                    ((results, mistakes_printed_already), rangel(x.size(0)))
+                        ||> Seq.fold (fun (results, mistakes_printed_already) i ->
+                            let results = int(correct[i]) :: results
+                            let mistakes_printed_already =
+                                if (not (correct[i].item<bool>())) && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
+                                    printfn "GPT claims that %A sorted is %A but gt is %A" inp[i].data sol_candidate[i].data sol[i].data
+                                    mistakes_printed_already + 1
+                                else mistakes_printed_already
+                            results, mistakes_printed_already))
+
+        let results = Seq.toArray results
+        let rt = torch.tensor(results, dtype=torch.float)
+        printfn "%s final score: %f/%d = %.2f%% correct"
+            split (rt.sum().item<float32>()) results.Length (100.0f * rt.mean().item<float32>())
+        rt.sum()
+
+    // run a lot of examples from both train and test through the model and verify the output correctness
+    using (torch.no_grad()) (fun _ ->
+        let train_score = eval_split "train" (Some 50)
+        let test_score  = eval_split "test"  (Some 50)
+        ())
