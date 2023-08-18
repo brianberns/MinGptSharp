@@ -55,7 +55,7 @@ type AdditionDataset(config, split (*train/test*)) =
 
     static member get_default_config() =
         {
-            ndigit = 2
+            ndigit = 3
         }
 
     member _.get_vocab_size() =
@@ -145,7 +145,7 @@ module Program =
     let trainer = Trainer(config.trainer, model, train_dataset)
 
     // helper function for the evaluation of a model
-    let eval_split (progress : TrainerProgress) split =
+    let eval_split (progress : TrainerProgress) split max_batches =
         let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
         let ndigit = config.data.ndigit
         let factors =
@@ -153,7 +153,11 @@ module Program =
                 .``to``(progress.device)
         let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
         let results, _ =
-            (([], 0), loader)
+            let dicts =
+                max_batches
+                    |> Option.map (fun max -> Seq.truncate max loader)
+                    |> Option.defaultValue loader
+            (([], 0), dicts)
                 ||> Seq.fold (fun (results, mistakes_printed_already) dict ->
                     let x = dict["x"].``to``(progress.device)
                     // isolate the first two digits of the input sequence alone
@@ -191,16 +195,19 @@ module Program =
     let mutable top_score = 0.0f
     let batch_end_callback info =
 
-        if info.iter_num % 100 = 0 then
+        if info.iter_num % 10 = 0 then
             printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
 
-        if info.iter_num % 1000 = 0 then
+        if info.iter_num % 500 = 0 then
             // evaluate both the train and test score
+            let train_max_batches =
+                if config.data.ndigit > 2 then Some 5
+                else Option.None // if ndigit=2 we can afford the whole train set, ow no
             model.eval()
             let train_score, test_score =
                 using (torch.no_grad()) (fun _ ->
-                    eval_split info "train",
-                    eval_split info "test")
+                    eval_split info "train" train_max_batches,
+                    eval_split info "test" Option.None)
             let score = (train_score + test_score).item<float32>()
             // save the model if this is the best score we've seen so far
             if score > top_score then
