@@ -111,6 +111,11 @@ module Program =
 
     trainer.run ()
 
+    let getSeq (t : Tensor) =
+        t.data<int64>()
+            |> Seq.map (int >> string)
+            |> String.concat ""
+
     let eval_split split max_batches =
         let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
         let n = train_dataset.Length
@@ -137,10 +142,7 @@ module Program =
                             let results = int(correct[i]) :: results
                             let mistakes_printed_already =
                                 if (not (correct[i].item<bool>())) && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
-                                    let get (t : Tensor) =
-                                        t[i].data<int64>()
-                                            |> Seq.map (int >> string)
-                                            |> String.concat ""
+                                    let get (t : Tensor) = getSeq t[i]
                                     printfn "GPT claims that %s sorted is %s but gt is %s" (get inp) (get sol_candidate) (get sol)
                                     mistakes_printed_already + 1
                                 else mistakes_printed_already
@@ -148,7 +150,7 @@ module Program =
 
         let results = Seq.toArray results
         let rt = torch.tensor(results, dtype=torch.float)
-        printfn "%s final score: %f/%d = %.2f%% correct"
+        printfn "%s final score: %.0f/%d = %.2f%% correct"
             split (rt.sum().item<float32>()) results.Length (100.0f * rt.mean().item<float32>())
         rt.sum()
 
@@ -157,3 +159,18 @@ module Program =
         let train_score = eval_split "train" (Some 50)
         let test_score  = eval_split "test"  (Some 50)
         ())
+
+    // let's run a random given sequence through the model as well
+    let n = train_dataset.Length
+    let inp = torch.tensor(array2D [[0; 0; 2; 1; 0; 1]], dtype=torch.long).``to``(trainer.Device)
+    assert(inp[0].NumberOfElements = n)
+    using (torch.no_grad()) (fun _ ->
+        let cat = model.generate(inp, n, do_sample=false)
+        let sol =
+            let struct (sol, _) = torch.sort(inp[0])
+            sol[0]
+        let sol_candidate = cat[Colon, Slice(n)]
+        printfn "input sequence  : %A" (getSeq inp)
+        printfn "predicted sorted: %A" (getSeq sol_candidate)
+        printfn "gt sort         : %A" (getSeq sol)
+        printfn "matches         : %A" <| torch.eq(sol, sol_candidate).all().item<bool>())

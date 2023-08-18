@@ -185,7 +185,7 @@ module Program =
 
         let results = Seq.toArray results
         let rt = torch.tensor(results, dtype=torch.float)
-        printfn "%s final score: %f/%d = %.2f%% correct"
+        printfn "%s final score: %.0f/%d = %.2f%% correct"
             split (rt.sum().item<float32>()) results.Length (100.0f * rt.mean().item<float32>())
         rt.sum()
 
