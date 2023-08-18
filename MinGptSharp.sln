@@ -16,6 +16,8 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Demo", "Demo\Demo.fsproj", 
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Adder", "Adder\Adder.fsproj", "{7527C7C4-A302-4F8B-B1E4-57BF796188FF}"
 EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "CharGpt", "CharGpt\CharGpt.fsproj", "{2D2D3B51-A45F-4B9A-AD85-1BAF39F47774}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -38,6 +40,10 @@ Global
 		{7527C7C4-A302-4F8B-B1E4-57BF796188FF}.Debug|x64.Build.0 = Debug|x64
 		{7527C7C4-A302-4F8B-B1E4-57BF796188FF}.Release|x64.ActiveCfg = Release|x64
 		{7527C7C4-A302-4F8B-B1E4-57BF796188FF}.Release|x64.Build.0 = Release|x64
+		{2D2D3B51-A45F-4B9A-AD85-1BAF39F47774}.Debug|x64.ActiveCfg = Debug|x64
+		{2D2D3B51-A45F-4B9A-AD85-1BAF39F47774}.Debug|x64.Build.0 = Debug|x64
+		{2D2D3B51-A45F-4B9A-AD85-1BAF39F47774}.Release|x64.ActiveCfg = Release|x64
+		{2D2D3B51-A45F-4B9A-AD85-1BAF39F47774}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

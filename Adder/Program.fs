@@ -123,7 +123,7 @@ module Program =
 
     // get default config
     let config_ = AdderConfig.get_config ()
-    set_seed(config_.seed)
+    set_seed config_.seed
 
     // construct train and test datasets
     let train_dataset = new AdditionDataset(config_.data, split="train")
