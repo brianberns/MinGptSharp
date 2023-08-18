@@ -185,10 +185,10 @@ module Program =
     let mutable top_score = 0.0f
     let batch_end_callback info =
 
-        if info.iter_num % 10 = 0 then
+        if info.iter_num % 100 = 0 then
             printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
 
-        if info.iter_num % 500 = 0 then
+        if info.iter_num % 1000 = 0 then
             // evaluate both the train and test score
             model.eval()
             let train_score, test_score =
