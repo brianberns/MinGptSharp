@@ -22,7 +22,7 @@ type TrainerProgress =
         device : string
     }
 
-type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
+type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
 
     let callbacks = Dictionary<string, ResizeArray<TrainerProgress -> unit>>()
 
@@ -82,7 +82,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
                 batch_size=config.batch_size,
                 num_workers=config.num_workers)
             *)
-            new DataLoader(train_dataset, config.batch_size, shuffle=false, num_worker=config.num_workers)
+            new MinDataLoader(train_dataset, config.batch_size, shuffle=false, num_worker=config.num_workers)
 
         model.train()
 
@@ -91,9 +91,9 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : Dataset) =
             if data_iter.MoveNext() then
 
                 // fetch the next batch (x, y)
-                let batch : Dictionary<_, Tensor> = data_iter.Current
-                let batch = [for t in batch.Values -> t.``to``(device)]
-                let [x; y] = batch
+                let (x : Tensor), (y : Tensor) = data_iter.Current
+                let x = x.``to``(device)
+                let y = y.``to``(device)
 
                 // forward the model
                 let logits, loss = model.forward(x, y)

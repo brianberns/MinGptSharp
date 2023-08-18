@@ -13,16 +13,16 @@ open FSharp.Core.Operators   // reclaim "int64" and other F# operators
 /// output: I I I I I 0 0 0 1 1 2
 /// where I is "ignore", as the transformer is reading the input sequence
 type SortDataset(split, ?length, ?num_digits) =
-    inherit Dataset()
+    inherit MinDataset()
 
     let length = defaultArg length 6
     let num_digits = defaultArg num_digits 3
 
     do assert(List.contains split ["train"; "test"])
 
-    let nTensorDicts = 10000
+    let nTensorPairs = 10000
 
-    let makeTensorDict () =
+    let makeTensorPair _ =
 
         // use rejection sampling to generate an input example from the desired split
         let rec loop () =
@@ -58,21 +58,21 @@ type SortDataset(split, ?length, ?num_digits) =
         let y = cat[Slice(1)].clone()
         // we only want to predict at output locations, mask out the loss at the input locations
         y[Slice(stop=length-1)] <- tensor -1
-        dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
+        x, y
 
-    let tensorDicts =
-        Array.init nTensorDicts (fun _ -> makeTensorDict ())
+    let tensorPairs =
+        Array.init nTensorPairs makeTensorPair
 
     member _.Length = length
 
-    override _.Count with get() = nTensorDicts
+    override _.Count with get() = nTensorPairs
 
     member _.get_vocab_size() = num_digits
 
     member _.get_block_size() = length * 2 - 1
 
     override _.GetTensor(idx) =
-        tensorDicts[int idx]
+        tensorPairs[int idx]
 
 module Program =
 
@@ -80,9 +80,7 @@ module Program =
 
     let train_dataset = new SortDataset("train")
     let test_dataset = new SortDataset("test")
-    let x, y =
-        let dict = train_dataset.GetTensor(0L)
-        dict["x"], dict["y"]
+    let x, y = train_dataset.GetTensor(0L)
     for a, b in Seq.zip (x.data<int64>()) (y.data<int64>()) do
         printfn $"{a} {b}"
 
@@ -119,16 +117,16 @@ module Program =
     let eval_split split max_batches =
         let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
         let n = train_dataset.Length
-        let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
+        let loader = new MinDataLoader(dataset, batch_size=100, num_worker=0, drop_last=false)
         let results, _ =
-            let dicts =
+            let pairs =
                 max_batches
                     |> Option.map (fun max -> Seq.truncate max loader)
                     |> Option.defaultValue loader
-            (([], 0), dicts)
-                ||> Seq.fold (fun (results, mistakes_printed_already) dict ->
-                    let x = dict["x"].``to``(trainer.Device)
-                    let y = dict["y"].``to``(trainer.Device)
+            (([], 0), pairs)
+                ||> Seq.fold (fun (results, mistakes_printed_already) (x, y) ->
+                    let x = x.``to``(trainer.Device)
+                    let y = y.``to``(trainer.Device)
                     // isolate the input pattern alone
                     let inp = x[Colon, Slice(stop=n)]
                     let sol = y[Colon, Slice(-n)]

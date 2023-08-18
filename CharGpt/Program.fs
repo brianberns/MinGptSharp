@@ -19,7 +19,7 @@ type CharDatasetConfig =
 
 /// Emits batches of characters
 type CharDataset(config, data : string) =
-    inherit Dataset()
+    inherit MinDataset()
 
     let chars = set data
     let data_size, vocab_size_ = data.Length, chars.Count
@@ -54,7 +54,7 @@ type CharDataset(config, data : string) =
         // return as tensors
         let x = torch.tensor(dix[.. dix.Length-2], dtype=torch.long)
         let y = torch.tensor(dix[1 ..], dtype=torch.long)
-        dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
+        x, y
 
 type CharConfig =
     {

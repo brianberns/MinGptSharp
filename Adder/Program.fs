@@ -39,7 +39,7 @@ type AdditionDatasetConfig =
 /// and hoping that the GPT model completes the sequence with the next (n+1) digits
 /// correctly.
 type AdditionDataset(config, split (*train/test*)) =
-    inherit Dataset()
+    inherit MinDataset()
 
     // split up all addition problems into either training data or test data
     let ndigit = config.ndigit
@@ -90,7 +90,7 @@ type AdditionDataset(config, split (*train/test*)) =
         let x = torch.tensor(dix[.. dix.Length-2], dtype=torch.long)
         let y = torch.tensor(dix[1 ..], dtype=torch.long) // predict the next token in the sequence
         y[Slice(stop=ndigit*2-1)] <- tensor -1 // we will only train in the output locations. -1 will mask loss to zero
-        dict [ "x", x; "y", y ] |> System.Collections.Generic.Dictionary
+        x, y
 
 type AdderConfig =
     {
@@ -149,15 +149,15 @@ module Program =
         let factors =
             torch.tensor(array2D [[for i in ndigit .. -1 .. 0 -> powi 10 i]])
                 .``to``(progress.device)
-        let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
+        let loader = new MinDataLoader(dataset, batch_size=100, num_worker=0, drop_last=false)
         let results, _ =
             let dicts =
                 max_batches
                     |> Option.map (fun max -> Seq.truncate max loader)
                     |> Option.defaultValue loader
             (([], 0), dicts)
-                ||> Seq.fold (fun (results, mistakes_printed_already) dict ->
-                    let x = dict["x"].``to``(progress.device)
+                ||> Seq.fold (fun (results, mistakes_printed_already) (x, y) ->
+                    let x = x.``to``(progress.device)
                     // isolate the first two digits of the input sequence alone
                     let d1d2 = x[Colon, Slice(stop=ndigit*2)]
                     // let the model sample the rest of the sequence
