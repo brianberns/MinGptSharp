@@ -273,7 +273,6 @@ type GPT(config) as self =
     /// Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
     /// the sequence max_new_tokens times, feeding the predictions back into the model each time.
     /// Most likely you'll want to make sure to be in model.eval() mode of operation for this.
-    /// @torch.no_grad()
     member _.generate(idx : Tensor, max_new_tokens, ?temperature, ?do_sample) =
         let temperature = defaultArg temperature 1.0
         let do_sample = defaultArg do_sample false
