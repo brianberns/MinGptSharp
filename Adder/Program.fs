@@ -55,7 +55,7 @@ type AdditionDataset(config, split (*train/test*)) =
 
     static member get_default_config() =
         {
-            ndigit = 3
+            ndigit = 2
         }
 
     member _.get_vocab_size() =
