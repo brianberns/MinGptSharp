@@ -168,9 +168,9 @@ module Program =
         let cat = model.generate(inp, n, do_sample=false)
         let sol =
             let struct (sol, _) = torch.sort(inp[0])
-            sol[0]
+            sol
         let sol_candidate = cat[Colon, Slice(n)]
-        printfn "input sequence  : %A" (getSeq inp)
-        printfn "predicted sorted: %A" (getSeq sol_candidate)
-        printfn "gt sort         : %A" (getSeq sol)
+        printfn "input sequence  : %s" (getSeq inp)
+        printfn "predicted sorted: %s" (getSeq sol_candidate)
+        printfn "gt sort         : %s" (getSeq sol)
         printfn "matches         : %A" <| torch.eq(sol, sol_candidate).all().item<bool>())
