@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="TorchSharp-cpu" Version="0.100.4" />
+    <PackageReference Include="TorchSharp-cuda-windows" Version="0.100.4" />
   </ItemGroup>
 
   <ItemGroup>
