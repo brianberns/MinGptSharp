@@ -137,7 +137,11 @@ module Program =
                             let results = int(correct[i]) :: results
                             let mistakes_printed_already =
                                 if (not (correct[i].item<bool>())) && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
-                                    printfn "GPT claims that %A sorted is %A but gt is %A" inp[i].data sol_candidate[i].data sol[i].data
+                                    let get (t : Tensor) =
+                                        t[i].data<int64>()
+                                            |> Seq.map (int >> string)
+                                            |> String.concat ""
+                                    printfn "GPT claims that %s sorted is %s but gt is %s" (get inp) (get sol_candidate) (get sol)
                                     mistakes_printed_already + 1
                                 else mistakes_printed_already
                             results, mistakes_printed_already))
