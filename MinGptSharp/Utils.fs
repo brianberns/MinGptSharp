@@ -64,6 +64,7 @@ type MinDataLoader(dataset : MinDataset, batch_size, ?shuffle, ?num_worker, ?dro
 
     static member private Collate =
         Func<_, _, _>(fun pairs device ->
+            let pairs = Seq.cache pairs
             collate fst pairs device,
             collate snd pairs device)
 
