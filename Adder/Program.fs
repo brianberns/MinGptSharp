@@ -148,37 +148,43 @@ module Program =
     let eval_split (progress : TrainerProgress) split =
         let dataset = (Map ["train", train_dataset; "test", test_dataset])[split]
         let ndigit = config.data.ndigit
-        let results = ResizeArray()
-        let mutable mistakes_printed_already = 0
         let factors =
             torch.tensor(array2D [[for i in ndigit .. -1 .. 0 -> powi 10 i]])
                 .``to``(progress.device)
         let loader = new DataLoader(dataset, batchSize=100, num_worker=0, drop_last=false)
-        for dict in loader do
-            let x = dict["x"].``to``(progress.device)
-            // isolate the first two digits of the input sequence alone
-            let d1d2 = x[Colon, Slice(stop=ndigit*2)]
-            // let the model sample the rest of the sequence
-            let d1d2d3 = model.generate(d1d2, ndigit+1, do_sample=false) // using greedy argmax, not sampling
-            // isolate the last digit of the sampled sequence
-            let d3 = d1d2d3[Colon, Slice(-(ndigit+1))]
-            let d3 = d3.flip(1) // reverse the digits to their "normal" order
-            // decode the integers from individual digits
-            let d1i = (d1d2[Colon, Slice(stop=ndigit)] * factors[Colon, Slice(1)]).sum(1)
-            let d2i = (d1d2[Colon, Slice(ndigit, ndigit*2)] * factors[Colon, Slice(1)]).sum(1)
-            let d3i_pred = (d3 * factors).sum(1)
-            let d3i_gt = d1i + d2i // manually calculate the ground truth
-            // evaluate the correctness of the results in this batch
-            let correct = (torch.eq(d3i_pred, d3i_gt)).cpu() // Software 1.0 vs. Software 2.0 fight RIGHT on this line haha
-            for i in rangel(x.size(0)) do
-                results.Add(int(correct[i]))
-                if (not (correct[i].item<bool>())) && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
-                    mistakes_printed_already <- mistakes_printed_already + 1
-                    let get (t : Tensor) = t[i].item<int64>()
-                    printfn "GPT claims that %d + %d = %d but gt is %d" (get d1i) (get d2i) (get d3i_pred) (get d3i_gt)
+        let results, _ =
+            (([], 0), loader)
+                ||> Seq.fold (fun (results, mistakes_printed_already) dict ->
+                    let x = dict["x"].``to``(progress.device)
+                    // isolate the first two digits of the input sequence alone
+                    let d1d2 = x[Colon, Slice(stop=ndigit*2)]
+                    // let the model sample the rest of the sequence
+                    let d1d2d3 = model.generate(d1d2, ndigit+1, do_sample=false) // using greedy argmax, not sampling
+                    // isolate the last digit of the sampled sequence
+                    let d3 = d1d2d3[Colon, Slice(-(ndigit+1))]
+                    let d3 = d3.flip(1) // reverse the digits to their "normal" order
+                    // decode the integers from individual digits
+                    let d1i = (d1d2[Colon, Slice(stop=ndigit)] * factors[Colon, Slice(1)]).sum(1)
+                    let d2i = (d1d2[Colon, Slice(ndigit, ndigit*2)] * factors[Colon, Slice(1)]).sum(1)
+                    let d3i_pred = (d3 * factors).sum(1)
+                    let d3i_gt = d1i + d2i // manually calculate the ground truth
+                    // evaluate the correctness of the results in this batch
+                    let correct = (torch.eq(d3i_pred, d3i_gt)).cpu() // Software 1.0 vs. Software 2.0 fight RIGHT on this line haha
+                    ((results, mistakes_printed_already), rangel(x.size(0)))
+                        ||> Seq.fold (fun (results, mistakes_printed_already) i ->
+                            let results = int(correct[i]) :: results
+                            let mistakes_printed_already =
+                                if (not (correct[i].item<bool>())) && mistakes_printed_already < 5 then // only print up to 5 mistakes to get a sense
+                                    let get (t : Tensor) = t[i].item<int64>()
+                                    printfn "GPT claims that %d + %d = %d but gt is %d" (get d1i) (get d2i) (get d3i_pred) (get d3i_gt)
+                                    mistakes_printed_already + 1
+                                else mistakes_printed_already
+                            results, mistakes_printed_already))
+
+        let results = Seq.toArray results
         let rt = torch.tensor(results, dtype=torch.float)
         printfn "%s final score: %f/%d = %.2f%% correct"
-            split (rt.sum().item<float32>()) results.Count (100.0f * rt.mean().item<float32>())
+            split (rt.sum().item<float32>()) results.Length (100.0f * rt.mean().item<float32>())
         rt.sum()
 
     // iteration callback
