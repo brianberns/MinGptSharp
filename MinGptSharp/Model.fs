@@ -78,7 +78,7 @@ type Mlp(config) as self =
     do self.RegisterComponents()
 
     override _.forward(x) =
-        x --> c_fc --> c_proj --> act --> dropout
+        x --> c_fc --> act --> c_proj --> dropout
 
 /// an unassuming Transformer block
 type Block(config) as self =

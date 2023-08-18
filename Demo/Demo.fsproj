@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
@@ -11,10 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="TorchSharp-cpu" Version="0.100.4" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\..\TorchSharp\src\TorchSharp\TorchSharp.csproj" />
     <ProjectReference Include="..\MinGptSharp\MinGptSharp.fsproj" />
   </ItemGroup>
 
