@@ -48,7 +48,7 @@ type SortDataset(split, ?length, ?num_digits) =
         let inp = loop ()
         
         // solve the task: i.e. sort
-        let struct (sol, _) = torch.sort(inp)
+        let sol = torch.sort(inp) |> fstv
 
         // concatenate the problem specification and the solution
         let cat = torch.cat(ResizeArray [inp; sol], dim=0)
@@ -166,9 +166,7 @@ module Program =
     assert(inp[0].NumberOfElements = n)
     using (torch.no_grad()) (fun _ ->
         let cat = model.generate(inp, n, do_sample=false)
-        let sol =
-            let struct (sol, _) = torch.sort(inp[0])
-            sol
+        let sol = torch.sort(inp[0]) |> fstv
         let sol_candidate = cat[Colon, Slice(n)]
         printfn "input sequence  : %s" (getSeq inp)
         printfn "predicted sorted: %s" (getSeq sol_candidate)

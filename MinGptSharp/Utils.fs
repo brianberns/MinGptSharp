@@ -13,6 +13,12 @@ module Utils =
     let powi x y =
         Seq.replicate y x |> Seq.fold (*) 1
 
+    /// First item of a value tuple.
+    let fstv (struct (x, _)) = x
+
+    /// Second item of a value tuple.
+    let sndv (struct (_, y)) = y
+
     /// Memoizes the given function.
     /// http://www.fssnip.net/mW/title/memoize-
     let memoize f =
