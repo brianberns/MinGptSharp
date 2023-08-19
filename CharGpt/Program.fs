@@ -58,29 +58,21 @@ type CharDataset(config, data : string) =
 
 type CharConfig =
     {
-        // system
         seed : int
         work_dir : string
-
-        // data
         data : CharDatasetConfig
-
-        // model
         model : ModelConfig
-
-        // trainer
         trainer : TrainerConfig
-        learning_rate : float
     } with
     
     static member get_config () =
+        let trainer_config = Trainer.get_default_config()
         {
             seed = 3407
-            work_dir = "./out/adder"
+            work_dir = "./out/chargpt"
             data = CharDataset.get_default_config()
             model = { GPT.get_default_config() with model_type = "gpt-mini" }
-            trainer = Trainer.get_default_config()
-            learning_rate = 5e-4 // the model we"re using is so small that we can go a bit faster
+            trainer = trainer_config
         }
 
 module Program =
@@ -116,7 +108,7 @@ module Program =
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
-                let context = "God"
+                let context = "O God, O God!"
                 let x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
                 let x = x[None, Ellipsis].``to``(trainer.Device)
                 let y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]

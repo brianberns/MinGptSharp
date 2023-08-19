@@ -94,19 +94,11 @@ type AdditionDataset(config, split (*train/test*)) =
 
 type AdderConfig =
     {
-        // system
         seed : int
         work_dir : string
-
-        // data
         data : AdditionDatasetConfig
-
-        // model
         model : ModelConfig
-
-        // trainer
         trainer : TrainerConfig
-        learning_rate : float
     } with
     
     static member get_config () =
@@ -115,8 +107,7 @@ type AdderConfig =
             work_dir = "./out/adder"
             data = AdditionDataset.get_default_config()
             model = { GPT.get_default_config() with model_type = "gpt-nano" }
-            trainer = Trainer.get_default_config()
-            learning_rate = 5e-4 // the model we"re using is so small that we can go a bit faster
+            trainer = { Trainer.get_default_config() with learning_rate = 5e-4 } // the model we"re using is so small that we can go a bit faster
         }
 
 module Program =
