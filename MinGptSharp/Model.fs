@@ -7,10 +7,6 @@ open type torch
 open type TensorIndex
 open FSharp.Core.Operators   // reclaim "float" and other F# operators
 
-[<AutoOpen>]
-module TorchExt =
-    let s (x : float) = x.ToScalar()
-
 /// Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT).
 /// Reference: Gaussian Error Linear Units (GELU) paper: https://arxiv.org/abs/1606.08415
 type NewGELU() =
@@ -56,7 +52,7 @@ type CausalSelfAttention(config) as self=
         let att =
             let bias = self._internal_buffers["bias"]
             let mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
-            att.masked_fill(torch.eq(mask, 0), s Double.NegativeInfinity)
+            att.masked_fill(torch.eq(mask, 0), Double.NegativeInfinity)
         let att = softmax(att, dim = -1)
         let att = att --> attn_dropout
         let y = att @@ v // (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)

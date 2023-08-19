@@ -37,9 +37,13 @@ module Utils =
                     cache.Add(x, v)
                     v
 
-    // replacement for @ operator
+    /// Converts to scalar.
+    let s (x : float) = x.ToScalar()
+
+    /// Replacement for torch's @ operator.
     let (@@) a b = torch.matmul(a, b)
 
+    /// Sets random seed.
     let set_seed seed =
         torch.manual_seed(seed) |> ignore
         torch.cuda.manual_seed_all(seed)
