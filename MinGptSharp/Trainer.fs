@@ -82,7 +82,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                 batch_size=config.batch_size,
                 num_workers=config.num_workers)
             *)
-            new MinDataLoader(train_dataset, config.batch_size, shuffle=false, num_worker=config.num_workers)
+            new MinDataLoader(train_dataset, config.batch_size, shuffle=true, num_worker=config.num_workers)
 
         model.train()
 
@@ -121,6 +121,8 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                     loop (iter_num + 1) iter_time data_iter
 
             else
+                torch.rand(2).str() |> ignore
                 train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
+        torch.rand(2).str() |> ignore
         train_loader.GetEnumerator() |> loop 0 DateTime.Now
