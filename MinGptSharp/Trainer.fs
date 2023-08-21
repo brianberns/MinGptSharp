@@ -27,11 +27,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
     let callbacks = Dictionary<string, ResizeArray<TrainerProgress -> unit>>()
 
     // determine the device we'll train on
-    let device =
-        if config.device = "auto" then
-            if torch.cuda.is_available() then "cuda" else "cpu"
-        else
-            config.device
+    let device = "cpu"
     let model = model.``to``(device)
     do printfn $"running on device {device}"
 
@@ -82,7 +78,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                 batch_size=config.batch_size,
                 num_workers=config.num_workers)
             *)
-            new MinDataLoader(train_dataset, config.batch_size, shuffle=true, num_worker=config.num_workers)
+            new MinDataLoader(train_dataset, config.batch_size, shuffle=false, num_worker=config.num_workers)
 
         model.train()
 
@@ -123,4 +119,5 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
             else
                 train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
+        printfn "Syncing RNG: %A" <| torch.rand(2).data<float32>().ToArray()
         train_loader.GetEnumerator() |> loop 0 DateTime.Now

@@ -103,7 +103,7 @@ module Program =
     let trainer = Trainer(train_config, model, train_dataset)
 
     let batch_end_callback progress =
-        if progress.iter_num % 100 = 0 then
+        if progress.iter_num % 1 = 0 then
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
     trainer.set_callback "on_batch_end" batch_end_callback
 

@@ -66,7 +66,7 @@ type CharConfig =
     
     static member get_config () =
         {
-            seed = 3407
+            seed = 0
             data = CharDataset.get_default_config()
             model = { GPT.get_default_config() with model_type = "gpt-mini" }
             trainer = { Trainer.get_default_config() with learning_rate = 5e-4 } // the model we"re using is so small that we can go a bit faster
@@ -99,10 +99,10 @@ module Program =
     // iteration callback
     let batch_end_callback progress =
 
-        if progress.iter_num % 10 = 0 then
+        if progress.iter_num % 1 = 0 then
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
-        if progress.iter_num % 500 = 0 then
+        if progress.iter_num % 500 = 501 then
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...

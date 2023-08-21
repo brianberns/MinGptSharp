@@ -102,7 +102,7 @@ type AdderConfig =
     
     static member get_config () =
         {
-            seed = 3407
+            seed = 0
             data = AdditionDataset.get_default_config()
             model = { GPT.get_default_config() with model_type = "gpt-nano" }
             trainer = { Trainer.get_default_config() with learning_rate = 5e-4 } // the model we"re using is so small that we can go a bit faster
@@ -183,10 +183,10 @@ module Program =
     let mutable top_score = 0.0f
     let batch_end_callback progress =
 
-        if progress.iter_num % 10 = 0 then
+        if progress.iter_num % 1 = 0 then
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
-        if progress.iter_num % 500 = 0 then
+        if progress.iter_num % 500 = 501 then
             // evaluate both the train and test score
             let train_max_batches =
                 if config.data.ndigit > 2 then Some 5
