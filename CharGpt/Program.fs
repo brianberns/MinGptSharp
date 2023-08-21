@@ -78,6 +78,7 @@ module Program =
 
     // get default config
     let config_ = CharConfig.get_config ()
+    printfn $"{config_}"
     set_seed config_.seed
 
     // construct the training dataset

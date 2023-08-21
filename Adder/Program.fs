@@ -114,6 +114,7 @@ module Program =
 
     // get default config
     let config_ = AdderConfig.get_config ()
+    printfn $"{config_}"
     set_seed config_.seed
 
     // construct train and test datasets
