@@ -276,22 +276,23 @@ type GPT(config) as self =
             (idx, range(max_new_tokens))
                 ||> Seq.fold (fun idx _ ->
                     // if the sequence context is growing too long we must crop it at block_size
-                    let idx_cond =
+                    use idx_cond =
                         if idx.size(1) <= config.block_size then idx
                         else idx[Colon, Slice(-config.block_size)]
                     // forward the model to get the logits for the index in the sequence
-                    let logits = self.forward(idx_cond)
+                    use logits = self.forward(idx_cond)
                     // pluck the logits at the final step and scale by desired temperature
-                    let logits = logits[Colon, Single(-1), Colon] / (temperature.ToScalar())
+                    use logits = logits[Colon, Single(-1), Colon] / (temperature.ToScalar())
                     // optionally crop the logits to only the top k options
                     Option.iter (fun top_k ->
                         let struct (v, _) = torch.topk(logits, top_k)
+                        use v = v
                         logits[torch.lt(logits, v[Colon, Single(-1)])] <- Double.NegativeInfinity)
                         top_k
                     // apply softmax to convert logits to (normalized) probabilities
-                    let probs = softmax(logits, dim = -1)
+                    use probs = softmax(logits, dim = -1)
                     // either sample from the distribution or take the most likely element
-                    let idx_next =
+                    use idx_next =
                         if do_sample then
                             torch.multinomial(probs, num_samples=1)
                         else
