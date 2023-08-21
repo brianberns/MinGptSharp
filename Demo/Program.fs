@@ -104,7 +104,7 @@ module Program =
 
     let batch_end_callback progress =
         if progress.iter_num % 1 = 0 then
-            printfn $"iter {progress.iter_num}: train loss {progress.loss:f16}, rand {torch.rand(1).item<float32>():f16}"
+            printfn $"iter {progress.iter_num}: train loss {progress.loss:f25}, rand {torch.rand(1).item<float32>():f25}"
     trainer.set_callback "on_batch_end" batch_end_callback
 
     trainer.run ()
