@@ -109,9 +109,9 @@ module Program =
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
                 let context = "O God, O God!"
-                use x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
-                use x = x[None, Ellipsis].``to``(trainer.Device)
-                use y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]
+                let x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
+                let x = x[None, Ellipsis].``to``(trainer.Device)
+                let y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]
                 let completion = String ([| for i in y.data<int64>() -> train_dataset.Itos(int i) |])
                 printfn "%s" completion)
             model.save("model.pt") |> ignore
