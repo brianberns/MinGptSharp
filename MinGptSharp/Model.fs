@@ -51,7 +51,7 @@ type CausalSelfAttention(config) as self=
         use att = (q @@ k.transpose(-2, -1)) * s (1.0 / Math.Sqrt(float <| k.size(-1)))
         use att =
             let bias = self._internal_buffers["bias"]
-            let mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
+            use mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
             att.masked_fill(torch.eq(mask, 0), Double.NegativeInfinity)
         use att = softmax(att, dim = -1)
         use att = att --> attn_dropout
