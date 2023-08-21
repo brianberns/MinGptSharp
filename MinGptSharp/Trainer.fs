@@ -119,5 +119,5 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
             else
                 train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
-        printfn "Syncing RNG: %A" <| torch.rand(2).data<float32>().ToArray()
+        printfn "syncing RNG: %A" <| torch.rand(2).data<float32>().ToArray()
         train_loader.GetEnumerator() |> loop 0 DateTime.Now
