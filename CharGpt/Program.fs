@@ -99,12 +99,12 @@ module Program =
     let trainer = Trainer(config.trainer, model, train_dataset)
 
     // iteration callback
-    let batch_end_callback info =
+    let batch_end_callback progress =
 
-        if info.iter_num % 10 = 0 then
-            printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
+        if progress.iter_num % 10 = 0 then
+            printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
-        if info.iter_num % 500 = 0 then
+        if progress.iter_num % 500 = 501 then
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...

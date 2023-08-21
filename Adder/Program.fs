@@ -183,12 +183,12 @@ module Program =
 
     // iteration callback
     let mutable top_score = 0.0f
-    let batch_end_callback info =
+    let batch_end_callback progress =
 
-        if info.iter_num % 10 = 0 then
-            printfn $"iter_dt {info.iter_dt}; iter {info.iter_num}: train loss {info.loss}"
+        if progress.iter_num % 10 = 0 then
+            printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
-        if info.iter_num % 500 = 0 then
+        if progress.iter_num % 500 = 0 then
             // evaluate both the train and test score
             let train_max_batches =
                 if config.data.ndigit > 2 then Some 5
@@ -196,8 +196,8 @@ module Program =
             model.eval()
             let train_score, test_score =
                 using (torch.no_grad()) (fun _ ->
-                    eval_split info "train" train_max_batches,
-                    eval_split info "test" Option.None)
+                    eval_split progress "train" train_max_batches,
+                    eval_split progress "test" Option.None)
             let score = (train_score + test_score).item<float32>()
             // save the model if this is the best score we've seen so far
             if score > top_score then
