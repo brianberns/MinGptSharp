@@ -121,8 +121,6 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                     loop (iter_num + 1) iter_time data_iter
 
             else
-                torch.rand(2).str() |> ignore
                 train_loader.GetEnumerator() |> loop (iter_num + 1) iter_time
 
-        torch.rand(2).str() |> ignore
         train_loader.GetEnumerator() |> loop 0 DateTime.Now
