@@ -59,7 +59,6 @@ type CharDataset(config, data : string) =
 type CharConfig =
     {
         seed : int
-        work_dir : string
         data : CharDatasetConfig
         model : ModelConfig
         trainer : TrainerConfig
@@ -68,7 +67,6 @@ type CharConfig =
     static member get_config () =
         {
             seed = 3407
-            work_dir = "./out/chargpt"
             data = CharDataset.get_default_config()
             model = { GPT.get_default_config() with model_type = "gpt-mini" }
             trainer = { Trainer.get_default_config() with learning_rate = 5e-4 } // the model we"re using is so small that we can go a bit faster
