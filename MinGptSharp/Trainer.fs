@@ -91,9 +91,11 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
             if data_iter.MoveNext() then
 
                 // fetch the next batch (x, y)
-                let (x : Tensor), (y : Tensor) = data_iter.Current
-                let x = x.``to``(device)
-                let y = y.``to``(device)
+                let batch = data_iter.Current
+                use x : Tensor = fst batch
+                use y : Tensor = snd batch
+                use x = x.``to``(device)
+                use y = y.``to``(device)
 
                 // forward the model
                 let logits, loss = model.forward(x, y)

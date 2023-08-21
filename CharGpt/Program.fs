@@ -104,14 +104,14 @@ module Program =
         if progress.iter_num % 10 = 0 then
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
-        if progress.iter_num % 500 = 0 then
+        if progress.iter_num % 500 = 501 then
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
                 let context = "O God, O God!"
-                let x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
-                let x = x[None, Ellipsis].``to``(trainer.Device)
-                let y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]
+                use x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
+                use x = x[None, Ellipsis].``to``(trainer.Device)
+                use y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]
                 let completion = String ([| for i in y.data<int64>() -> train_dataset.Itos(int i) |])
                 printfn "%s" completion)
             model.save("model.pt") |> ignore

@@ -43,20 +43,20 @@ type CausalSelfAttention(config) as self=
 
         // calculate query, key, values for all heads in batch and move head forward to be the batch dim
         let [| q; k; v |] = (x --> c_attn).split(n_embd, dim=2)
-        let k = k.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
-        let q = q.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
-        let v = v.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
+        use k = k.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
+        use q = q.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
+        use v = v.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
 
         // causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        let att = (q @@ k.transpose(-2, -1)) * s (1.0 / Math.Sqrt(float <| k.size(-1)))
-        let att =
+        use att = (q @@ k.transpose(-2, -1)) * s (1.0 / Math.Sqrt(float <| k.size(-1)))
+        use att =
             let bias = self._internal_buffers["bias"]
             let mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
             att.masked_fill(torch.eq(mask, 0), Double.NegativeInfinity)
-        let att = softmax(att, dim = -1)
-        let att = att --> attn_dropout
-        let y = att @@ v // (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        let y = y.transpose(1, 2).contiguous().view(B, T, C) // re-assemble all head outputs side by side
+        use att = softmax(att, dim = -1)
+        use att = att --> attn_dropout
+        use y = att @@ v // (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        use y = y.transpose(1, 2).contiguous().view(B, T, C) // re-assemble all head outputs side by side
 
         // output projection
         y --> c_proj --> resid_dropout
@@ -88,7 +88,7 @@ type Block(config) as self =
     do self.RegisterComponents()
 
     override _.forward(x) =
-        let x = x + (x --> ln_1 --> attn)
+        use x = x + (x --> ln_1 --> attn)
         let x = x + (x --> ln_2 --> mlp)
         x
 
@@ -112,12 +112,12 @@ type Transformer(config) as self =
         let [| b; t; |] = idx.size()
         if t > block_size then
             failwith $"Cannot forward sequence of length {t}, block size is only {block_size}"
-        let pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) // shape (1, t)
+        use pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) // shape (1, t)
 
-        let tok_emb = idx --> wte // token embeddings of shape (b, t, n_embd)
-        let pos_emb = pos --> wpe // position embeddings of shape (1, t, n_embd)
-        let x = (tok_emb + pos_emb) --> drop
-        let x = Seq.fold (-->) x h
+        use tok_emb = idx --> wte // token embeddings of shape (b, t, n_embd)
+        use pos_emb = pos --> wpe // position embeddings of shape (1, t, n_embd)
+        use x = (tok_emb + pos_emb) --> drop
+        use x = Seq.fold (-->) x h
         x --> ln_f
 
 /// GPT Language Model
