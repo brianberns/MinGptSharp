@@ -104,7 +104,7 @@ module Program =
         if progress.iter_num % 10 = 0 then
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
-        if progress.iter_num % 500 = 501 then
+        if progress.iter_num % 500 = 0 then
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
