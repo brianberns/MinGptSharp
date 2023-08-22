@@ -90,7 +90,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
 
             if data_iter.MoveNext() then
 
-                let loss =
+                let iter_time =
                     use _scope = torch.NewDisposeScope()
 
                     // fetch the next batch (x, y)
@@ -107,18 +107,16 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
                     optimizer.step() |> ignore
 
-                    loss.item<float32>()
-
-                let tnow = DateTime.Now
-                let iter_dt = tnow - iter_time
-                trigger_callbacks "on_batch_end"
-                    {
-                        iter_num = iter_num
-                        iter_dt = iter_dt
-                        loss = loss
-                        device = device
-                    }
-                let iter_time = tnow
+                    let tnow = DateTime.Now
+                    let iter_dt = tnow - iter_time
+                    trigger_callbacks "on_batch_end"
+                        {
+                            iter_num = iter_num
+                            iter_dt = iter_dt
+                            loss = loss.item<float32>()
+                            device = device
+                        }
+                    tnow
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
