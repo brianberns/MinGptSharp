@@ -90,19 +90,24 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
 
             if data_iter.MoveNext() then
 
-                // fetch the next batch (x, y)
-                let (x : Tensor), (y : Tensor) = data_iter.Current
-                let x = x.``to``(device)
-                let y = y.``to``(device)
+                let loss =
+                    use _scope = torch.NewDisposeScope()
 
-                // forward the model
-                let logits, loss = model.forward(x, y)
+                    // fetch the next batch (x, y)
+                    let (x : Tensor), (y : Tensor) = data_iter.Current
+                    let x = x.``to``(device)
+                    let y = y.``to``(device)
 
-                // backprop and update the parameters
-                optimizer.zero_grad((*set_to_none=true*))
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
-                optimizer.step() |> ignore
+                    // forward the model
+                    let _logits, loss = model.forward(x, y)
+
+                    // backprop and update the parameters
+                    optimizer.zero_grad((*set_to_none=true*))
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
+                    optimizer.step() |> ignore
+
+                    loss.item<float32>()
 
                 let tnow = DateTime.Now
                 let iter_dt = tnow - iter_time
@@ -110,11 +115,10 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                     {
                         iter_num = iter_num
                         iter_dt = iter_dt
-                        loss = loss.item<float32>()
+                        loss = loss
                         device = device
                     }
                 let iter_time = tnow
-                GC.Collect()   // https://github.com/dotnet/TorchSharp/blob/main/docfx/articles/memory.md
 
                 // termination conditions
                 if config.max_iters <= 0 || iter_num < config.max_iters then
