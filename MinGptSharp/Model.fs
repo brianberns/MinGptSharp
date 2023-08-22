@@ -273,8 +273,10 @@ type GPT(config) as self =
         let temperature = defaultArg temperature 1.0
         let do_sample = defaultArg do_sample false
         using (torch.no_grad()) (fun _ ->
-            (idx, range(max_new_tokens))
+            (idx.alias(), range(max_new_tokens))
                 ||> Seq.fold (fun idx _ ->
+                    use _scope = torch.NewDisposeScope()
+                    use idx = idx
                     // if the sequence context is growing too long we must crop it at block_size
                     let idx_cond =
                         if idx.size(1) <= config.block_size then idx
@@ -298,4 +300,4 @@ type GPT(config) as self =
                             let struct (_, idx_next) = torch.topk(probs, k=1, dim = -1)
                             idx_next
                     // append sampled index to the running sequence and continue
-                    torch.cat([|idx; idx_next|], dim=1)))
+                    torch.cat([|idx; idx_next|], dim=1).DetachFromDisposeScope()))
