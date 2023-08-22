@@ -51,7 +51,7 @@ type SortDataset(split, ?length, ?num_digits) =
         let sol = torch.sort(inp) |> fstv
 
         // concatenate the problem specification and the solution
-        let cat = torch.cat(ResizeArray [inp; sol], dim=0)
+        let cat = torch.cat([|inp; sol|], dim=0)
 
         // the inputs to the transformer will be the offset sequence
         let x = cat[Slice(stop = -1)].clone()
