@@ -106,7 +106,7 @@ module Program =
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
-                let context = "It is "
+                let context = "O God, O God!"
                 let x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
                 let x = x[None, Ellipsis].``to``(trainer.Device)
                 let y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]
