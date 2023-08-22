@@ -103,10 +103,11 @@ module Program =
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
         if progress.iter_num % 500 = 0 then
+            use _scope = torch.NewDisposeScope()
             model.eval()
             using (torch.no_grad()) (fun _ ->
                 // sample from the model...
-                let context = "O God, O God!"
+                let context = "It is "
                 let x = torch.tensor([| for ch in context -> train_dataset.Stoi(ch) |], dtype=torch.long)
                 let x = x[None, Ellipsis].``to``(trainer.Device)
                 let y = model.generate(x, 500, temperature=1.0, do_sample=true, top_k=10)[0]

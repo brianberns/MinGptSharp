@@ -187,6 +187,7 @@ module Program =
             printfn $"iter_dt {progress.iter_dt.TotalMilliseconds:f2}ms; iter {progress.iter_num}: train loss {progress.loss}"
 
         if progress.iter_num % 500 = 0 then
+            use _scope = torch.NewDisposeScope()
             // evaluate both the train and test score
             let train_max_batches =
                 if config.data.ndigit > 2 then Some 5
