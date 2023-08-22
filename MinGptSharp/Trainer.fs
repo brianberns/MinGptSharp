@@ -95,7 +95,7 @@ type Trainer(config : TrainerConfig, model : GPT, train_dataset : MinDataset) =
                 let logits, loss = model.forward(x, y)
 
                 // backprop and update the parameters
-                model.zero_grad((*set_to_none=true*))
+                optimizer.zero_grad((*set_to_none=true*))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip) |> ignore
                 optimizer.step() |> ignore
