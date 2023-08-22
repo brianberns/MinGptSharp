@@ -76,10 +76,10 @@ type ModelConfig =
     {
         model_type : string
         n_layer : int
-        n_head : int64
-        n_embd : int64
-        vocab_size : int64
-        block_size : int64
+        n_head : int
+        n_embd : int
+        vocab_size : int
+        block_size : int
         embd_pdrop : float
         resid_pdrop : float
         attn_pdrop : float

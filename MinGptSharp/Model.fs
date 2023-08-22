@@ -24,7 +24,7 @@ type CausalSelfAttention(config) as self=
 
     do assert(config.n_embd % config.n_head = 0)
     // key, query, value projections for all heads, but in a batch
-    let c_attn = nn.Linear(config.n_embd, 3L * config.n_embd)
+    let c_attn = nn.Linear(config.n_embd, 3L * int64 config.n_embd)
     // output projection
     let c_proj = nn.Linear(config.n_embd, config.n_embd)
     // regularization
@@ -43,9 +43,9 @@ type CausalSelfAttention(config) as self=
 
         // calculate query, key, values for all heads in batch and move head forward to be the batch dim
         let [| q; k; v |] = (x --> c_attn).split(n_embd, dim=2)
-        let k = k.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
-        let q = q.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
-        let v = v.view(B, T, n_head, C / n_head).transpose(1, 2) // (B, nh, T, hs)
+        let k = k.view(B, T, n_head, C / int64 n_head).transpose(1, 2) // (B, nh, T, hs)
+        let q = q.view(B, T, n_head, C / int64 n_head).transpose(1, 2) // (B, nh, T, hs)
+        let v = v.view(B, T, n_head, C / int64 n_head).transpose(1, 2) // (B, nh, T, hs)
 
         // causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         let att = (q @@ k.transpose(-2, -1)) * s (1.0 / Math.Sqrt(float <| k.size(-1)))
@@ -66,8 +66,8 @@ type CausalSelfAttention(config) as self=
 type Mlp(config) as self =
     inherit nn.Module<Tensor, Tensor>("Mlp")
 
-    let c_fc = nn.Linear(config.n_embd, 4L * config.n_embd)
-    let c_proj = nn.Linear(4L * config.n_embd, config.n_embd)
+    let c_fc = nn.Linear(config.n_embd, 4L * int64 config.n_embd)
+    let c_proj = nn.Linear(4L * int64 config.n_embd, config.n_embd)
     let act = new NewGELU()
     let dropout = nn.Dropout(config.resid_pdrop)
 
@@ -186,11 +186,11 @@ type GPT(config) as self =
             // either model_type or (n_layer, n_head, n_embd) must be given in the config
             model_type = "gpt"
             n_layer = -1
-            n_head = -1L
-            n_embd =  -1L
+            n_head = -1
+            n_embd =  -1
             // these options must be filled in externally
-            vocab_size = -1L
-            block_size = -1L
+            vocab_size = -1
+            block_size = -1
             // dropout hyperparameters
             embd_pdrop = 0.1
             resid_pdrop = 0.1
