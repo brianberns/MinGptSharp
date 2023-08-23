@@ -19,7 +19,7 @@ type NewGELU() =
 /// A vanilla multi-head masked self-attention layer with a projection at the end.
 /// It is possible to use torch.nn.MultiheadAttention here but I am including an
 /// explicit implementation here to show that there is nothing too scary here.
-type CausalSelfAttention(config) as self=
+type CausalSelfAttention(config) as self =
     inherit nn.Module<Tensor, Tensor>("CausalSelfAttention")
 
     do assert(config.n_embd % config.n_head = 0)
@@ -48,7 +48,7 @@ type CausalSelfAttention(config) as self=
         let v = v.view(B, T, n_head, C / int64 n_head).transpose(1, 2) // (B, nh, T, hs)
 
         // causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        let att = (q @@ k.transpose(-2, -1)) * s (1.0 / Math.Sqrt(float <| k.size(-1)))
+        let att = (q @@ k.transpose(-2, -1)) * s (1.0 / (k.size(-1) |> float |> sqrt))
         let att =
             let bias = self._internal_buffers["bias"]
             let mask = bias[Colon, Colon, Slice(stop=T), Slice(stop=T)]
