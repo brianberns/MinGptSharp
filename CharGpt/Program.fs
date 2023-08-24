@@ -69,7 +69,7 @@ type CharConfig =
             seed = 3407
             data = CharDataset.get_default_config()
             model = { GPT.get_default_config() with model_type = "gpt-mini" }
-            trainer = { Trainer.get_default_config() with learning_rate = 5e-4 } // the model we"re using is so small that we can go a bit faster
+            trainer = { Trainer.get_default_config() with learning_rate = 5e-4 } // the model we're using is so small that we can go a bit faster
         }
 
 module Program =
