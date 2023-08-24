@@ -155,7 +155,7 @@ type GPT(config) as self =
     let transformer = new Transformer(config)
     let lm_head = nn.Linear(config.n_embd, config.vocab_size, hasBias=false)
 
-    let _init_weights(mdule : nn.Module) =
+    let init_weights (mdule : nn.Module) =
         match mdule with
             | :? Modules.Linear as linear ->
                 torch.nn.init.normal_(linear.weight, mean=0.0, std=0.02) |> ignore
@@ -172,7 +172,7 @@ type GPT(config) as self =
         self.RegisterComponents()
 
         // init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
-        self.apply(_init_weights) |> ignore
+        self.apply(init_weights) |> ignore
         for pn, p in self.named_parameters() do
             if pn.EndsWith("c_proj.weight") then
                 torch.nn.init.normal_(p, mean=0.0, std=0.02/Math.Sqrt(2.0 * float config.n_layer)) |> ignore
